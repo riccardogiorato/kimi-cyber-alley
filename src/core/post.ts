@@ -43,7 +43,7 @@ const INK_GRADE_SHADER = {
     uInkDistance: { value: 45.0 }, // ink fully faded by this view depth
     uShadowTint: { value: new THREE.Color(0x1c2f4a) }, // teal/violet darks
     uHighlightTint: { value: new THREE.Color(0xffe8f2) }, // warm pink-white highs
-    uLift: { value: 0.045 }, // black lift
+    uLift: { value: 0.09 }, // black lift
   },
   vertexShader: /* glsl */ `
 		varying vec2 vUv;

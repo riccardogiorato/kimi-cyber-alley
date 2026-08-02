@@ -267,7 +267,7 @@ function buildVendingMachine(
   g.add(slot);
 
   // Cold white light in front of the machine.
-  const light = new THREE.PointLight(spec.glowColor, 6, 5, 1.8);
+  const light = new THREE.PointLight(spec.glowColor, 14, 5, 1.8);
   light.position.set(0, 1.3, frontZ + 0.55);
   g.add(light);
 
@@ -567,7 +567,7 @@ function buildLanternRows(ctx: AlleyContext, group: THREE.Group): LanternRow[] {
 
     // One shared warm light per row (budget: 4 total).
     wirePoint(a, b, sag, 0.5, tmpA);
-    const light = new THREE.PointLight(0xff7a33, 5, 7, 1.9);
+    const light = new THREE.PointLight(0xff7a33, 12, 7, 1.9);
     light.position.copy(tmpA).y -= 0.4;
     group.add(light);
   }

@@ -54,9 +54,9 @@ collect(
 );
 
 // Base ambient: deep teal, so unlit shadow never reads as black.
-scene.add(new THREE.AmbientLight(0x1a3a3c, 0.85));
+scene.add(new THREE.AmbientLight(0x3d6a6c, 48.0));
 // Faint violet counter-fill from above, like spill from the choked sky.
-const skySpill = new THREE.HemisphereLight(0x2a2440, 0x0a1414, 0.5);
+const skySpill = new THREE.HemisphereLight(0x4a4480, 0x142a2a, 26.0);
 scene.add(skySpill);
 
 // --- Player ------------------------------------------------------------------

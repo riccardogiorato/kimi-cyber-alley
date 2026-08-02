@@ -323,7 +323,7 @@ export function buildNoodleStand(ctx: AlleyContext): NoodleStandPart {
     lantern.position.set(lx, 1.5, -0.02);
     cart.add(lantern);
     lanternSways.push({ obj: lantern, phase: rng() * TAU });
-    const light = new THREE.PointLight(0xffa04a, 5, 4, 1.8);
+    const light = new THREE.PointLight(0xffa04a, 12, 4, 1.8);
     light.position.set(lx, 1.45, -0.05);
     cart.add(light);
   }

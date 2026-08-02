@@ -137,7 +137,7 @@ function onFace(f: Face, u: number, y: number, out: number): THREE.Vector3 {
 /* palette                                                             */
 /* ------------------------------------------------------------------ */
 
-const WALL_TINTS = [0x5f6f72, 0x6f675c, 0x655a50].map((c) => new THREE.Color(c)); // teal / warm / brown grey
+const WALL_TINTS = [0x9fb4b8, 0xb8a894, 0xa89484].map((c) => new THREE.Color(c)); // teal / warm / brown grey
 const PIPE_COLORS = [0x7a4a38, 0x6b7074, 0x3f5a5c].map((c) => new THREE.Color(c)); // rust / steel / verdigris
 const AC_COLORS = [0x9aa0a2, 0x7d8587, 0x8b8f84].map((c) => new THREE.Color(c));
 const KIT_DARK = new THREE.Color(0x2c3236);

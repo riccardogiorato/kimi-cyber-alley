@@ -1146,7 +1146,7 @@ export function makeWallGrimeTexture(opts: WallGrimeOptions = {}): THREE.CanvasT
   const S = opts.size ?? 512;
   const [canvas, ctx] = makeCanvas(S, S);
 
-  ctx.fillStyle = opts.base ?? '#23262e';
+  ctx.fillStyle = opts.base ?? '#3a3f4c';
   ctx.fillRect(0, 0, S, S);
 
   // flat tonal blotches

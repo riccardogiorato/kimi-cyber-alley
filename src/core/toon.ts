@@ -39,9 +39,9 @@ function getGradientRamp(steps: number): THREE.DataTexture {
 
   const data = new Uint8Array(steps * 4);
   for (let i = 0; i < steps; i++) {
-    // Evenly spaced bands lifted off zero: steps=3 -> ~[0.38, 0.69, 1.0]
+    // Evenly spaced bands lifted off zero: steps=3 -> ~[0.52, 0.76, 1.0]
     const t = steps === 1 ? 1 : i / (steps - 1);
-    const v = Math.round((0.35 + 0.65 * t) * 255);
+    const v = Math.round((0.52 + 0.48 * t) * 255);
     const o = i * 4;
     data[o] = v;
     data[o + 1] = v;
@@ -145,5 +145,8 @@ export function makeEmissiveToon(opts: ToonOptions): THREE.MeshToonMaterial {
     emissive: glow.getHex(),
     emissiveIntensity: opts.emissiveIntensity ?? 1.6,
   });
+  // The texture must drive the GLOW, not just the (near-dead) diffuse term —
+  // otherwise neon sign faces render as flat colour instead of lit artwork.
+  if (opts.map) material.emissiveMap = opts.map;
   return material;
 }
