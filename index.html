@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>kimi-cyber-alley</title>
+    <style>
+      html, body { margin: 0; padding: 0; height: 100%; background: #060a0c; overflow: hidden; }
+      canvas { display: block; }
+      #overlay {
+        position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+        color: #b8e6e0; font-family: ui-monospace, Menlo, monospace; font-size: 14px;
+        background: rgba(4, 8, 10, 0.55); cursor: pointer; user-select: none;
+        letter-spacing: 0.08em; text-align: center; line-height: 1.9;
+        transition: opacity 0.25s ease; z-index: 10;
+      }
+      #overlay.hidden { opacity: 0; pointer-events: none; }
+    </style>
+  </head>
+  <body>
+    <div id="overlay">CLICK TO ENTER THE ALLEY<br />WASD move &middot; SHIFT run &middot; ESC release</div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
