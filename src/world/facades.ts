@@ -177,9 +177,9 @@ export function buildFacades(ctx: AlleyContext): BuiltPart {
   const wallEntries: MergeEntry[] = [];
   const darkEntries: MergeEntry[] = []; // doorway openings + dark window panes
   const silEntries: MergeEntry[] = [];  // distant silhouettes
-  const posterEntries: MergeEntry[][] = [[], []];
-  const stickerEntries: MergeEntry[][] = [[], []];
-  const graffitiEntries: MergeEntry[][] = [[], []];
+  const posterEntries: MergeEntry[][] = [[], [], [], []];
+  const stickerEntries: MergeEntry[][] = [[], [], [], [], []];
+  const graffitiEntries: MergeEntry[][] = [[], [], []];
 
   const faces: Face[] = [];
   const mainFaces: Face[] = [];
@@ -310,7 +310,7 @@ export function buildFacades(ctx: AlleyContext): BuiltPart {
       if (kind < 0.45) {
         const w = 0.55 + rng() * 0.25;
         const h = 0.8 + rng() * 0.3;
-        posterEntries[rng() < 0.5 ? 0 : 1]!.push({
+        posterEntries[Math.floor(rng() * 4)]!.push({
           geo: unitPlane,
           matrix: composeMat(p.x, 0.5 + rng() * 1.7, p.z, 0, yaw, tilt, w, h, 1),
         });
@@ -318,7 +318,7 @@ export function buildFacades(ctx: AlleyContext): BuiltPart {
         const nStickers = 1 + Math.floor(rng() * 3);
         for (let s = 0; s < nStickers; s++) {
           const q = onFace(f, Math.min(f.len - 0.2, Math.max(0.2, u + (rng() - 0.5) * 0.5)), 0, out + 0.005 * s);
-          stickerEntries[rng() < 0.5 ? 0 : 1]!.push({
+          stickerEntries[Math.floor(rng() * 5)]!.push({
             geo: unitPlane,
             matrix: composeMat(q.x, 0.4 + rng() * 2.2, q.z, 0, yaw, (rng() - 0.5) * 0.6, 0.18 + rng() * 0.16, 0.2 + rng() * 0.18, 1),
           });
@@ -326,7 +326,7 @@ export function buildFacades(ctx: AlleyContext): BuiltPart {
       } else {
         const w = 1.2 + rng() * 0.7;
         const h = 0.8 + rng() * 0.35;
-        graffitiEntries[rng() < 0.5 ? 0 : 1]!.push({
+        graffitiEntries[Math.floor(rng() * 3)]!.push({
           geo: unitPlane,
           matrix: composeMat(p.x, 0.9 + rng() * 0.9, p.z, 0, yaw, (rng() - 0.5) * 0.08, w, h, 1),
         });

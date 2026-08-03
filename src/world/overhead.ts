@@ -124,9 +124,9 @@ export function buildOverhead(ctx: AlleyContext): OverheadPart {
 
   let z = 3.5;
   while (z < ALLEY.length - 4) {
-    if (rng() < 0.3) {
+    if (rng() < 0.42) {
       // leave a gap for sky/rain
-      const gapW = 2.5 + rng() * 3;
+      const gapW = 3.5 + rng() * 4;
       rainGaps.push({ x: (rng() - 0.5) * 1.2, z: z + gapW / 2, width: gapW });
       z += gapW;
       continue;
@@ -134,7 +134,7 @@ export function buildOverhead(ctx: AlleyContext): OverheadPart {
     const side = rng() < 0.5 ? 1 : -1;
     const wallX = side * ALLEY.halfWidth;
     const runLen = 2.2 + rng() * 2.6;
-    const y = 3.6 + rng() * 3.6;
+    const y = 4.6 + rng() * 3.4;
 
     if (rng() < 0.55) {
       // striped awning: angled plane jutting from the wall toward the alley

@@ -83,7 +83,7 @@ function buildPaperLantern(tex: THREE.CanvasTexture): THREE.Group {
     makeEmissiveToon({
       color: 0xffc06a,
       emissive: 0xff9a3c,
-      emissiveIntensity: 1.35,
+      emissiveIntensity: 2.3,
       map: tex,
     }),
   );
@@ -188,7 +188,7 @@ export function buildNoodleStand(ctx: AlleyContext): NoodleStandPart {
 
   const warmerGlow = new THREE.Mesh(
     new THREE.BoxGeometry(0.55, 0.34, 0.4),
-    makeEmissiveToon({ color: 0xffb35c, emissive: 0xff9a3c, emissiveIntensity: 1.1 }),
+    makeEmissiveToon({ color: 0xffb35c, emissive: 0xff9a3c, emissiveIntensity: 1.9 }),
   );
   warmerGlow.position.y = 0.17;
   warmer.add(warmerGlow);

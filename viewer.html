@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>alley asset viewer</title>
+    <style>
+      html, body { margin: 0; background: #0b0e12; color: #9fb4b8;
+        font-family: ui-monospace, Menlo, monospace; }
+      #app { padding: 12px; }
+      #app canvas { display: block; border: 1px solid #1e2630; border-radius: 6px; }
+      #title { font-size: 12px; letter-spacing: 0.1em; color: #7fd4c8; margin-bottom: 8px; }
+      a { color: #9fd8ff; text-decoration: none; }
+      a:hover { color: #fff; }
+      #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
+      .cell { display: block; background: #11151b; border: 1px solid #1e2630; border-radius: 6px;
+        overflow: hidden; color: #9fb4b8; }
+      .cell:hover { border-color: #37e6ff; }
+      .cell .thumb canvas { display: block; width: 100%; border: none; border-radius: 0; }
+      .cell span { display: block; padding: 5px 8px; font-size: 11px; letter-spacing: 0.06em;
+        color: #7fd4c8; background: #0d1116; }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/viewer.ts"></script>
+  </body>
+</html>

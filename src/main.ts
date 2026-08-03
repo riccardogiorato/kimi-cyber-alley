@@ -10,6 +10,7 @@ import { buildNoodleStand } from './world/noodleStand';
 import { buildProps } from './world/props';
 import { buildAtmosphere } from './world/atmosphere';
 import { setHullResolution } from './world/props';
+import { makeSkyTexture } from './core/textures';
 
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
 renderer.setPixelRatio(1); // supersampling is handled by the ink pipeline
@@ -20,8 +21,8 @@ document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 // No sky, no sun — deep teal void above the rooftops.
-scene.background = new THREE.Color(0x04100f);
-scene.fog = new THREE.FogExp2(0x06201f, 0.016);
+scene.background = makeSkyTexture();
+scene.fog = new THREE.FogExp2(0x0e2028, 0.02);
 
 const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.05, 120);
 
@@ -54,9 +55,9 @@ collect(
 );
 
 // Base ambient: deep teal, so unlit shadow never reads as black.
-scene.add(new THREE.AmbientLight(0x3d6a6c, 48.0));
+scene.add(new THREE.AmbientLight(0x3d6a6c, 320.0));
 // Faint violet counter-fill from above, like spill from the choked sky.
-const skySpill = new THREE.HemisphereLight(0x4a4480, 0x142a2a, 26.0);
+const skySpill = new THREE.HemisphereLight(0x4a4480, 0x142a2a, 680.0);
 scene.add(skySpill);
 
 // --- Player ------------------------------------------------------------------

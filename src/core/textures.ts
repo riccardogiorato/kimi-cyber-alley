@@ -744,7 +744,11 @@ export type GraffitiVariant = 'tag' | 'throwie' | 'stencil';
 export interface GraffitiOptions extends SeedOptions {
   color?: string;
   outline?: string;
+  /** Throwie word override. */
+  text?: string;
 }
+
+const THROWIE_WORDS = ['NEO', 'VOID', 'RAYO', 'KAI', 'ZEN', 'MIRA', '404', 'SYN'];
 
 /** Spray-ish but graphic graffiti, 768x384, transparent background. */
 export function makeGraffitiTexture(variant: GraffitiVariant, opts: GraffitiOptions = {}): THREE.CanvasTexture {
@@ -792,10 +796,11 @@ export function makeGraffitiTexture(variant: GraffitiVariant, opts: GraffitiOpti
     ctx.shadowBlur = 10;
     ctx.strokeStyle = opts.outline ?? '#141428';
     ctx.lineWidth = 34;
-    ctx.strokeText('NEO', 384, 200);
+    const word = opts.text ?? THROWIE_WORDS[Math.floor(rng() * THROWIE_WORDS.length)]!;
+    ctx.strokeText(word, 384, 200);
     ctx.shadowBlur = 0;
     ctx.fillStyle = color;
-    ctx.fillText('NEO', 384, 200);
+    ctx.fillText(word, 384, 200);
     // highlight
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 6;
@@ -968,24 +973,50 @@ export function makeGroundTexture(opts: GroundTextureOptions = {}): THREE.Canvas
   const sx = W / (xRange[1] - xRange[0]); // px per world unit across
   const sz = H / (zRange[1] - zRange[0]); // px per world unit along
 
-  // base asphalt: dark blue-grey
-  ctx.fillStyle = '#181c26';
+  // base asphalt: dark blue-grey with a warm cast near the centre (old repairs)
+  ctx.fillStyle = '#1b202c';
   ctx.fillRect(0, 0, W, H);
 
-  // flat tonal patches (large soft rects, very low contrast)
-  for (let i = 0; i < 60; i++) {
-    const shade = 18 + Math.floor(rng() * 14);
-    ctx.fillStyle = `rgba(${shade},${shade + 3},${shade + 12},${0.25 + rng() * 0.3})`;
-    const pw = 60 + rng() * 260;
-    const ph = 80 + rng() * 380;
+  // large patchwork of old repairs — overlapping darker/lighter tar rectangles
+  for (let i = 0; i < 46; i++) {
+    const warm = rng() < 0.3;
+    const shade = 16 + Math.floor(rng() * 22);
+    ctx.fillStyle = warm
+      ? `rgba(${shade + 14},${shade + 6},${shade - 2},${0.2 + rng() * 0.25})`
+      : `rgba(${shade},${shade + 3},${shade + 12},${0.25 + rng() * 0.3})`;
+    const pw = 60 + rng() * 300;
+    const ph = 80 + rng() * 420;
     ctx.fillRect(rng() * (W - pw), rng() * (H - ph), pw, ph);
+    // tar seam around some patches
+    if (rng() < 0.4) {
+      ctx.strokeStyle = 'rgba(6,8,12,0.5)';
+      ctx.lineWidth = 2 + rng() * 3;
+      ctx.strokeRect(rng() * (W - pw), rng() * (H - ph), pw, ph);
+    }
   }
 
-  // aggregate speckle
-  for (let i = 0; i < 2600; i++) {
+  // aggregate speckle — dense, two-tone, some larger stones
+  for (let i = 0; i < 5200; i++) {
     const l = rng();
-    ctx.fillStyle = l > 0.5 ? 'rgba(70,78,96,0.35)' : 'rgba(8,10,14,0.4)';
-    ctx.fillRect(rng() * W, rng() * H, 1 + rng() * 2, 1 + rng() * 2);
+    ctx.fillStyle = l > 0.55 ? `rgba(${64 + rng() * 30},${72 + rng() * 30},${92 + rng() * 30},0.4)` : 'rgba(8,10,14,0.45)';
+    ctx.fillRect(rng() * W, rng() * H, 1 + rng() * 2.5, 1 + rng() * 2.5);
+  }
+
+  // cracks: thin jagged polylines, dark with a faint light edge
+  for (let i = 0; i < 26; i++) {
+    let cx = rng() * W;
+    let cy = rng() * H;
+    const segs = 4 + Math.floor(rng() * 7);
+    ctx.strokeStyle = 'rgba(5,7,10,0.55)';
+    ctx.lineWidth = 1 + rng() * 1.5;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    for (let s = 0; s < segs; s++) {
+      cx += (rng() - 0.5) * 90;
+      cy += rng() * 60;
+      ctx.lineTo(cx, cy);
+    }
+    ctx.stroke();
   }
 
   // painted curb edges along both sides
@@ -1002,14 +1033,14 @@ export function makeGroundTexture(opts: GroundTextureOptions = {}): THREE.Canvas
     ctx.fillRect(u(-0.05), v(z), u(0.05) - u(-0.05), v(z + 1.6) - v(z));
   }
 
-  // puddle-ish darker glossy patches
-  for (let i = 0; i < 9; i++) {
+  // puddle-ish darker glossy patches with a bright sky-glint rim
+  for (let i = 0; i < 12; i++) {
     const px = xRange[0] + 0.4 + rng() * (xRange[1] - xRange[0] - 0.8);
     const pz = zRange[0] + rng() * (zRange[1] - zRange[0]);
-    const pr = (0.25 + rng() * 0.5) * sx;
+    const pr = (0.25 + rng() * 0.6) * sx;
     const g = ctx.createRadialGradient(u(px), v(pz), pr * 0.1, u(px), v(pz), pr);
-    g.addColorStop(0, 'rgba(6,10,18,0.85)');
-    g.addColorStop(0.7, 'rgba(10,16,26,0.55)');
+    g.addColorStop(0, 'rgba(5,9,16,0.9)');
+    g.addColorStop(0.7, 'rgba(9,14,24,0.6)');
     g.addColorStop(1, 'rgba(10,16,26,0)');
     ctx.save();
     ctx.translate(u(px), v(pz));
@@ -1020,45 +1051,90 @@ export function makeGroundTexture(opts: GroundTextureOptions = {}): THREE.Canvas
     ctx.arc(u(px), v(pz), pr, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
+    // faint cool glint on the puddle's upper edge (sky reflection)
+    ctx.save();
+    ctx.translate(u(px), v(pz));
+    ctx.scale(1, 1.6);
+    ctx.strokeStyle = 'rgba(120,160,190,0.18)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, pr * 0.8, Math.PI * 1.1, Math.PI * 1.6);
+    ctx.stroke();
+    ctx.restore();
   }
 
-  // neon reflection smears — additive, vertically elongated soft streaks
+  // neon reflection smears — additive, vertically elongated soft streaks.
+  // Bright core + wide halo + broken ripple lines: reads as WET, not as fog.
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   for (const smear of opts.smears ?? []) {
-    const intensity = smear.intensity ?? 0.55;
+    const intensity = smear.intensity ?? 0.8;
     const wPx = Math.max(8, smear.width * sx);
-    const lPx = Math.max(24, (smear.length ?? smear.width * 6) * sz);
+    const lPx = Math.max(24, (smear.length ?? smear.width * 7) * sz);
     const cx = u(smear.x);
     const cy = v(smear.z);
+    // wide halo
     ctx.save();
     ctx.translate(cx, cy);
     ctx.scale(1, lPx / wPx);
     const g = ctx.createRadialGradient(0, 0, 0, 0, 0, wPx * 0.5);
-    g.addColorStop(0, hexA(smear.color, 0.5 * intensity));
-    g.addColorStop(0.45, hexA(smear.color, 0.22 * intensity));
+    g.addColorStop(0, hexA(smear.color, 0.42 * intensity));
+    g.addColorStop(0.45, hexA(smear.color, 0.18 * intensity));
     g.addColorStop(1, hexA(smear.color, 0));
     ctx.fillStyle = g;
     ctx.beginPath();
     ctx.arc(0, 0, wPx * 0.5, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
+    // bright narrow core streak
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(1, lPx / (wPx * 0.36));
+    const g2 = ctx.createRadialGradient(0, 0, 0, 0, 0, wPx * 0.18);
+    g2.addColorStop(0, hexA(smear.color, 0.55 * intensity));
+    g2.addColorStop(1, hexA(smear.color, 0));
+    ctx.fillStyle = g2;
+    ctx.beginPath();
+    ctx.arc(0, 0, wPx * 0.18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
     // broken streak lines inside the smear (wet ripple gaps)
     ctx.save();
-    ctx.globalAlpha = 0.25 * intensity;
+    ctx.globalAlpha = 0.4 * intensity;
     ctx.strokeStyle = smear.color;
-    for (let i = 0; i < 4; i++) {
-      ctx.lineWidth = 2 + rng() * 4;
-      const lx = cx + (rng() - 0.5) * wPx * 0.6;
-      const ly0 = cy - lPx * 0.4 + rng() * lPx * 0.3;
+    for (let i = 0; i < 7; i++) {
+      ctx.lineWidth = 1.5 + rng() * 4;
+      const lx = cx + (rng() - 0.5) * wPx * 0.7;
+      const ly0 = cy - lPx * 0.45 + rng() * lPx * 0.35;
       ctx.beginPath();
       ctx.moveTo(lx, ly0);
-      ctx.lineTo(lx + (rng() - 0.5) * 6, ly0 + lPx * (0.2 + rng() * 0.3));
+      ctx.lineTo(lx + (rng() - 0.5) * 8, ly0 + lPx * (0.2 + rng() * 0.35));
       ctx.stroke();
     }
     ctx.restore();
   }
   ctx.restore();
+
+  // scattered paper scraps / flattened cardboard / leaves of old newsprint
+  for (let i = 0; i < 22; i++) {
+    const px = rng() * W;
+    const pz = rng() * H;
+    const w = 8 + rng() * 26;
+    const h = 6 + rng() * 20;
+    const tone = ['#8a8578', '#a39c8a', '#6b6558', '#7d6a4f'][Math.floor(rng() * 4)] ?? '#8a8578';
+    ctx.save();
+    ctx.translate(px, pz);
+    ctx.rotate(rng() * Math.PI);
+    ctx.fillStyle = tone;
+    ctx.globalAlpha = 0.55 + rng() * 0.3;
+    ctx.fillRect(-w / 2, -h / 2, w, h);
+    // print lines on paper scraps
+    ctx.globalAlpha = 0.25;
+    ctx.fillStyle = '#222';
+    for (let l = 0; l < 3; l++) ctx.fillRect(-w / 2 + 2, -h / 2 + 3 + l * 4, w - 4, 1.5);
+    ctx.restore();
+  }
+  ctx.globalAlpha = 1;
 
   // drain grate slots
   const grate = (gx: number, gz: number) => {
@@ -1146,22 +1222,69 @@ export function makeWallGrimeTexture(opts: WallGrimeOptions = {}): THREE.CanvasT
   const S = opts.size ?? 512;
   const [canvas, ctx] = makeCanvas(S, S);
 
-  ctx.fillStyle = opts.base ?? '#3a3f4c';
+  ctx.fillStyle = opts.base ?? '#414654';
   ctx.fillRect(0, 0, S, S);
 
-  // flat tonal blotches
-  for (let i = 0; i < 40; i++) {
-    const shade = 26 + Math.floor(rng() * 16);
-    ctx.fillStyle = `rgba(${shade},${shade + 2},${shade + 8},${0.2 + rng() * 0.3})`;
-    ctx.fillRect(rng() * S, rng() * S, 30 + rng() * 140, 30 + rng() * 140);
+  // large tonal blotches — patchy old concrete / repainted sections
+  for (let i = 0; i < 34; i++) {
+    const warm = rng() < 0.25;
+    const shade = 34 + Math.floor(rng() * 30);
+    ctx.fillStyle = warm
+      ? `rgba(${shade + 16},${shade + 6},${shade - 4},${0.18 + rng() * 0.22})`
+      : `rgba(${shade},${shade + 2},${shade + 10},${0.2 + rng() * 0.28})`;
+    ctx.fillRect(rng() * S, rng() * S, 40 + rng() * 180, 40 + rng() * 180);
   }
+
+  // horizontal formwork / panel seams (cast concrete bands)
+  for (let y = 0; y < S; y += 64 + Math.floor(rng() * 32)) {
+    ctx.fillStyle = 'rgba(10,12,16,0.35)';
+    ctx.fillRect(0, y, S, 2);
+    ctx.fillStyle = 'rgba(140,150,170,0.12)';
+    ctx.fillRect(0, y + 2, S, 1);
+  }
+  // a few vertical seams
+  for (let i = 0; i < 4; i++) {
+    const x = rng() * S;
+    ctx.fillStyle = 'rgba(10,12,16,0.3)';
+    ctx.fillRect(x, 0, 2, S);
+  }
+
   // speckle
-  for (let i = 0; i < 1200; i++) {
+  for (let i = 0; i < 1600; i++) {
     ctx.fillStyle = rng() > 0.5 ? 'rgba(60,64,76,0.3)' : 'rgba(10,11,15,0.35)';
     ctx.fillRect(rng() * S, rng() * S, 1 + rng() * 2, 1 + rng() * 2);
   }
-  // streak stains running down
-  for (let i = 0; i < 14; i++) {
+
+  // exposed patches where paint fell off (lighter raw concrete)
+  for (let i = 0; i < 7; i++) {
+    const x = rng() * S;
+    const y = rng() * S;
+    const w = 20 + rng() * 60;
+    const h = 14 + rng() * 44;
+    ctx.fillStyle = `rgba(${120 + rng() * 30},${118 + rng() * 28},${108 + rng() * 24},${0.12 + rng() * 0.14})`;
+    ctx.beginPath();
+    ctx.ellipse(x, y, w, h, rng() * 0.6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // rust weeps under imaginary bolts/fixtures
+  for (let i = 0; i < 8; i++) {
+    const x = rng() * S;
+    const y = rng() * S * 0.7;
+    const len = 30 + rng() * 90;
+    const g = ctx.createLinearGradient(0, y, 0, y + len);
+    g.addColorStop(0, 'rgba(122,74,56,0.4)');
+    g.addColorStop(1, 'rgba(122,74,56,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(x - 2 - rng() * 3, y, 4 + rng() * 6, len);
+    ctx.fillStyle = 'rgba(90,50,36,0.55)';
+    ctx.beginPath();
+    ctx.arc(x, y, 2.5 + rng() * 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // streak stains running down (rain grime)
+  for (let i = 0; i < 18; i++) {
     const x = rng() * S;
     const w = 4 + rng() * 18;
     const len = S * (0.3 + rng() * 0.7);
@@ -1284,6 +1407,75 @@ export function makeTarpTexture(variant: TarpVariant, opts: TarpOptions = {}): T
 /* (rng-first, numeric variants). These adapters map that contract onto the   */
 /* richer per-kind factories above.                                           */
 /* -------------------------------------------------------------------------- */
+
+/**
+ * Night sky seen through the gap between rooftops: deep teal-indigo gradient,
+ * a few faint stars, and a warm city-glow band near the horizon. Used as the
+ * scene background — the alley must read as LATE NIGHT, not a void.
+ */
+export function makeSkyTexture(): THREE.CanvasTexture {
+  const [canvas, ctx] = makeCanvas(1024, 512);
+  const g = ctx.createLinearGradient(0, 0, 0, 512);
+  g.addColorStop(0, '#101f38'); // zenith: cold indigo
+  g.addColorStop(0.5, '#0c1a2c');
+  g.addColorStop(0.8, '#14282f'); // teal haze band
+  g.addColorStop(1, '#332e33'); // warm city glow at the roofline
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 1024, 512);
+  // warm sodium glow pooling at the horizon
+  const glow = ctx.createLinearGradient(0, 400, 0, 512);
+  glow.addColorStop(0, 'rgba(255,150,90,0)');
+  glow.addColorStop(1, 'rgba(255,150,90,0.22)');
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 400, 1024, 112);
+  const rng = mulberry32(0x57);
+  // milky way: a soft diagonal band of layered translucent blobs + dense star dust
+  ctx.save();
+  ctx.translate(512, 190);
+  ctx.rotate(-0.42);
+  for (let i = 0; i < 90; i++) {
+    const t = rng() * 2 - 1;
+    const off = (rng() - 0.5) * 130;
+    const r = 30 + rng() * 90;
+    const grad = ctx.createRadialGradient(t * 560, off * 0.35, 0, t * 560, off * 0.35, r);
+    const warm = rng() < 0.3;
+    grad.addColorStop(0, warm ? 'rgba(190,170,190,0.05)' : 'rgba(150,180,215,0.055)');
+    grad.addColorStop(1, 'rgba(150,180,215,0)');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(t * 560, off * 0.35, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  // star dust inside the band
+  for (let i = 0; i < 700; i++) {
+    const t = rng() * 2 - 1;
+    const off = (rng() + rng() - 1) * 90;
+    const a = 0.15 + rng() * 0.5;
+    ctx.fillStyle = `rgba(210,225,240,${a.toFixed(3)})`;
+    ctx.fillRect(t * 580, off * 0.4, 1, 1);
+  }
+  ctx.restore();
+  // stars, denser toward the zenith, a few bright ones with cross glints
+  for (let i = 0; i < 320; i++) {
+    const y = rng() * 380;
+    const a = (1 - y / 420) * (0.3 + rng() * 0.6);
+    ctx.fillStyle = `rgba(205,225,240,${a.toFixed(3)})`;
+    const s = rng() < 0.92 ? 1 : 2;
+    ctx.fillRect(rng() * 1024, y, s, s);
+  }
+  for (let i = 0; i < 14; i++) {
+    const x = rng() * 1024;
+    const y = rng() * 260;
+    ctx.fillStyle = 'rgba(230,240,250,0.9)';
+    ctx.fillRect(x, y, 2, 2);
+    ctx.fillStyle = 'rgba(230,240,250,0.25)';
+    ctx.fillRect(x - 3, y, 8, 1);
+    ctx.fillRect(x, y - 3, 1, 8);
+  }
+  const t = toTexture(canvas);
+  t.mapping = THREE.EquirectangularReflectionMapping;
+  return t;
+}
 
 export type NeonSignKind = 'hotel' | 'karaoke' | 'lightbox24' | 'eigyochu' | 'kanjiTower';
 
