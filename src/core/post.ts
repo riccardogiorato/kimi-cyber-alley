@@ -242,7 +242,9 @@ export class InkPipeline {
     this.bloomComposer = new EffectComposer(renderer);
     this.bloomSourcePass = new ShaderPass(CopyShader);
     this.bloomSourcePass.uniforms.tDiffuse!.value = this.sceneRT.texture;
-    this.bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.9, 0.55, 0.62);
+    // strength 1.0, radius 0.85 (wide soft halo that bleeds into the haze),
+    // threshold 0.55 (only the hot neon/lights bloom, not the whole frame).
+    this.bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), 1.0, 0.85, 0.55);
     this.bloomComposer.addPass(this.bloomSourcePass);
     this.bloomComposer.addPass(this.bloomPass);
 
