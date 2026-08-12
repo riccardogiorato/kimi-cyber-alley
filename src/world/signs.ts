@@ -270,7 +270,7 @@ export function buildSigns(ctx: AlleyContext): SignsPart {
       h: 2.6,
       texture: tex,
       emissive: 0x51ff7a,
-      emissiveIntensity: 3.0,
+      emissiveIntensity: 4.5,
       standoff: 0.7,
       steel,
     });
@@ -542,7 +542,7 @@ export function buildSigns(ctx: AlleyContext): SignsPart {
         h: spec.h,
         texture: first,
         emissive: new THREE.Color(spec.color).getHex(),
-        emissiveIntensity: 3.0,
+        emissiveIntensity: 4.5,
         standoff: 0.6,
         steel,
       });
@@ -557,7 +557,7 @@ export function buildSigns(ctx: AlleyContext): SignsPart {
         h: spec.h,
         texture: first,
         emissive: new THREE.Color(spec.color).getHex(),
-        emissiveIntensity: 3.0,
+        emissiveIntensity: 4.5,
         steel,
       });
       group.add(built.group);
