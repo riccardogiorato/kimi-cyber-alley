@@ -209,6 +209,30 @@ export function buildFacades(ctx: AlleyContext): BuiltPart {
     }
   }
 
+  /* ---------------- entrance wall at z=0 (closes the void behind spawn) ----- */
+  // A real facade across the alley mouth so looking back shows a street wall,
+  // not an infinite void. Facing +Z (down the alley, toward the player).
+  {
+    const span = ALLEY.halfWidth + 0.6; // a touch wider than the walkable mouth
+    let x = -span;
+    while (x < span - 0.01) {
+      const segLen = Math.min(4 + rng() * 3, span - x);
+      const step = rng() < 0.5 ? 0 : 0.12 + rng() * 0.2;
+      const faceZ = -0.3 - step; // just behind the spawn collider
+      const h = ALLEY.wallHeight - 1 + rng() * 2;
+      wallEntries.push({
+        geo: unitBox,
+        matrix: composeMat(x + segLen / 2, h / 2, faceZ - 0.175, 0, 0, 0, segLen, h, 0.35),
+        color: pick(WALL_TINTS),
+        uvScale: [segLen / 4, h / 4],
+      });
+      // Face +Z (normal toward the player/down the alley).
+      faces.push({ ox: x, oz: faceZ, ux: 1, uz: 0, nx: 0, nz: 1, len: segLen, h, main: false });
+      x += segLen;
+    }
+    addCollider(ctx, 0, ALLEY.wallHeight / 2, -0.55, span * 2 + 1, ALLEY.wallHeight, 0.7);
+  }
+
   /* ---------------- T-junction walls ---------------- */
 
   const crossZ0 = ALLEY.length;
