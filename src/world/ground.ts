@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { ALLEY, addCollider, type AlleyContext, type BuiltPart } from '../core/types';
 import { makeToon } from '../core/toon';
-import { groundTexture } from '../core/textures';
+import { makeAsphaltTileTexture, makeSmearOverlayTexture } from '../core/textures';
 
 export interface GroundOptions {
   /** Where sign light pools hit the ground — reflection smears get painted here. */
@@ -16,7 +16,13 @@ export function buildGround(ctx: AlleyContext, opts: GroundOptions): BuiltPart {
   const group = new THREE.Group();
   group.name = 'ground';
 
-  const tex = groundTexture(ctx.rng, { lightPools: opts.lightPools });
+  // Base asphalt: a small SEAMLESS tile repeated down the alley so the
+  // texture never stretches. One tile covers ~TILE_WORLD metres of ground.
+  const TILE_WORLD = 4;
+  const mainW = ALLEY.halfWidth * 2 + 0.4;
+  const mainLen = ALLEY.length + 0.4;
+  const tex = makeAsphaltTileTexture({ rng: ctx.rng });
+  tex.repeat.set(mainW / TILE_WORLD, mainLen / TILE_WORLD);
 
   const mat = makeToon({
     color: 0xffffff,
@@ -25,16 +31,36 @@ export function buildGround(ctx: AlleyContext, opts: GroundOptions): BuiltPart {
   });
 
   // Main alley floor: texture v runs along the alley length.
-  const mainW = ALLEY.halfWidth * 2 + 0.4;
-  const mainGeo = new THREE.PlaneGeometry(mainW, ALLEY.length + 0.4);
+  const mainGeo = new THREE.PlaneGeometry(mainW, mainLen);
   const main = new THREE.Mesh(mainGeo, mat);
   main.rotation.x = -Math.PI / 2;
   main.position.set(0, 0, ALLEY.length / 2);
   group.add(main);
 
-  // Cross alley floor strip at the T.
-  const crossGeo = new THREE.PlaneGeometry(ALLEY.crossHalfWidth * 2 + 2, ALLEY.crossWidth + 0.4);
-  const cross = new THREE.Mesh(crossGeo, mat);
+  // Neon reflection smears: a separate transparent overlay so the base tile
+  // can repeat freely while smears stay pinned to their sign positions.
+  const smearTex = makeSmearOverlayTexture(ctx.rng, { lightPools: opts.lightPools });
+  const smearMat = new THREE.MeshBasicMaterial({
+    map: smearTex,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    fog: true,
+  });
+  const smear = new THREE.Mesh(new THREE.PlaneGeometry(mainW, mainLen), smearMat);
+  smear.rotation.x = -Math.PI / 2;
+  smear.position.set(0, 0.012, ALLEY.length / 2);
+  smear.renderOrder = 4;
+  group.add(smear);
+
+  // Cross alley floor strip at the T (own tiled copy so repeat fits its size).
+  const crossW = ALLEY.crossHalfWidth * 2 + 2;
+  const crossL = ALLEY.crossWidth + 0.4;
+  const crossTex = makeAsphaltTileTexture({ rng: ctx.rng });
+  crossTex.repeat.set(crossW / TILE_WORLD, crossL / TILE_WORLD);
+  const crossMat = makeToon({ color: 0xffffff, map: crossTex, gradientSteps: 3 });
+  const crossGeo = new THREE.PlaneGeometry(crossW, crossL);
+  const cross = new THREE.Mesh(crossGeo, crossMat);
   cross.rotation.x = -Math.PI / 2;
   cross.position.set(0, 0.001, ALLEY.length + ALLEY.crossWidth / 2);
   group.add(cross);

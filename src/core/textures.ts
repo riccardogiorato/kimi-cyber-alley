@@ -1197,6 +1197,166 @@ function hexA(hex: string, a: number): string {
 }
 
 // ---------------------------------------------------------------------------
+// 6b. Tileable asphalt detail (seamless, meant to repeat down the alley)
+// ---------------------------------------------------------------------------
+
+export interface AsphaltTileOptions extends SeedOptions {
+  /** Canvas size (square). Default 512. */
+  size?: number;
+}
+
+/**
+ * Seamless wet-asphalt tile. Unlike `makeGroundTexture` (one bespoke canvas
+ * for the whole alley, which stretches), this is a small *repeating* detail
+ * map: aggregate speckle, tar patches, cracks and faint seams drawn so the
+ * edges wrap. RepeatWrapping on both axes; the caller sets `repeat` so one
+ * tile covers ~4x4 m of ground — no more stretching down the alley length.
+ */
+export function makeAsphaltTileTexture(opts: AsphaltTileOptions = {}): THREE.CanvasTexture {
+  const rng = resolveRng(opts);
+  const S = opts.size ?? 512;
+  const [canvas, ctx] = makeCanvas(S, S);
+
+  // base asphalt
+  ctx.fillStyle = '#181a20';
+  ctx.fillRect(0, 0, S, S);
+
+  // Draw helpers that stamp a shape at 9 wrapped offsets so edges tile.
+  const wrap = (fn: (x: number, y: number) => void) => (x: number, y: number) => {
+    for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) fn(x + ox, y + oy);
+  };
+
+  // large tonal patches (old repairs) — wrapped so seams don't show
+  const patch = wrap((x, y) => {
+    const warm = rng() < 0.3;
+    const shade = 18 + Math.floor(rng() * 22);
+    ctx.fillStyle = warm
+      ? `rgba(${shade + 14},${shade + 6},${shade - 2},${0.2 + rng() * 0.25})`
+      : `rgba(${shade},${shade + 3},${shade + 12},${0.24 + rng() * 0.3})`;
+    ctx.fillRect(x, y, 50 + rng() * 150, 50 + rng() * 150);
+  });
+  for (let i = 0; i < 26; i++) patch(rng() * S, rng() * S);
+
+  // aggregate speckle — the main detail that kills the "flat stretch" look
+  for (let i = 0; i < 7000; i++) {
+    const l = rng();
+    ctx.fillStyle = l > 0.55
+      ? `rgba(${58 + rng() * 26},${60 + rng() * 26},${66 + rng() * 26},0.4)`
+      : 'rgba(8,9,12,0.45)';
+    ctx.fillRect(rng() * S, rng() * S, 1 + rng() * 2, 1 + rng() * 2);
+  }
+
+  // cracks — thin jagged polylines, wrapped
+  const crack = wrap((x, y) => {
+    let cx = x;
+    let cy = y;
+    const segs = 4 + Math.floor(rng() * 6);
+    ctx.strokeStyle = 'rgba(5,7,10,0.5)';
+    ctx.lineWidth = 1 + rng() * 1.4;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    for (let s = 0; s < segs; s++) {
+      cx += (rng() - 0.5) * 60;
+      cy += (rng() - 0.5) * 60;
+      ctx.lineTo(cx, cy);
+    }
+    ctx.stroke();
+  });
+  for (let i = 0; i < 16; i++) crack(rng() * S, rng() * S);
+
+  // subtle puddle sheen patches (glossy darker ellipses)
+  const puddle = wrap((x, y) => {
+    const r = 20 + rng() * 50;
+    const g = ctx.createRadialGradient(x, y, r * 0.1, x, y, r);
+    g.addColorStop(0, 'rgba(6,10,16,0.7)');
+    g.addColorStop(0.7, 'rgba(9,14,22,0.4)');
+    g.addColorStop(1, 'rgba(10,16,24,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  for (let i = 0; i < 7; i++) puddle(rng() * S, rng() * S);
+
+  return toTexture(canvas, {
+    wrapS: THREE.RepeatWrapping,
+    wrapT: THREE.RepeatWrapping,
+    anisotropy: 8,
+  });
+}
+
+/**
+ * Transparent overlay holding ONLY the neon reflection smears, laid over the
+ * repeating asphalt tile. Drawn additively on a clear canvas; the mesh uses
+ * AdditiveBlending so the black/empty parts vanish over the tiled base.
+ */
+export function makeSmearOverlayTexture(
+  rng: Rng,
+  opts: { lightPools: { x: number; z: number; color: number; width: number }[] },
+): THREE.CanvasTexture {
+  const W = 1024;
+  const H = 2048;
+  const xRange: [number, number] = [-ALLEY.halfWidth, ALLEY.halfWidth];
+  const zRange: [number, number] = [0, ALLEY.length];
+  const [canvas, ctx] = makeCanvas(W, H);
+  const u = (x: number) => ((x - xRange[0]) / (xRange[1] - xRange[0])) * W;
+  const v = (z: number) => ((z - zRange[0]) / (zRange[1] - zRange[0])) * H;
+  const sx = W / (xRange[1] - xRange[0]);
+  const sz = H / (zRange[1] - zRange[0]);
+
+  ctx.globalCompositeOperation = 'lighter';
+  for (const p of opts.lightPools) {
+    const color = `#${p.color.toString(16).padStart(6, '0')}`;
+    const intensity = 0.85;
+    const wPx = Math.max(8, p.width * sx);
+    const lPx = Math.max(24, p.width * 7 * sz);
+    const cx = u(p.x);
+    const cy = v(p.z);
+    // wide halo
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(1, lPx / wPx);
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, wPx * 0.5);
+    g.addColorStop(0, hexA(color, 0.42 * intensity));
+    g.addColorStop(0.45, hexA(color, 0.18 * intensity));
+    g.addColorStop(1, hexA(color, 0));
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(0, 0, wPx * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    // bright narrow core streak
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(1, lPx / (wPx * 0.36));
+    const g2 = ctx.createRadialGradient(0, 0, 0, 0, 0, wPx * 0.18);
+    g2.addColorStop(0, hexA(color, 0.55 * intensity));
+    g2.addColorStop(1, hexA(color, 0));
+    ctx.fillStyle = g2;
+    ctx.beginPath();
+    ctx.arc(0, 0, wPx * 0.18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    // broken wet ripple lines
+    ctx.save();
+    ctx.globalAlpha = 0.4 * intensity;
+    ctx.strokeStyle = color;
+    for (let i = 0; i < 7; i++) {
+      ctx.lineWidth = 1.5 + rng() * 4;
+      const lx = cx + (rng() - 0.5) * wPx * 0.7;
+      const ly0 = cy - lPx * 0.45 + rng() * lPx * 0.35;
+      ctx.beginPath();
+      ctx.moveTo(lx, ly0);
+      ctx.lineTo(lx + (rng() - 0.5) * 8, ly0 + lPx * (0.2 + rng() * 0.35));
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  return toTexture(canvas, { anisotropy: 8 });
+}
+
+// ---------------------------------------------------------------------------
 // 7. Wall grime / base facade texture (tileable-ish)
 // ---------------------------------------------------------------------------
 

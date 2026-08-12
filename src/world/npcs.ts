@@ -95,13 +95,26 @@ export function buildNpcs(ctx: AlleyContext): BuiltPart {
 
   const agents: NpcAgent[] = [];
   const COUNT = 5;
+  // Distinct, evenly-spread home lanes so NPCs don't converge on the same
+  // path. Each gets a fixed lane across the (now wider) alley with jitter.
+  const laneSlots = [-0.72, -0.36, 0.0, 0.36, 0.72].map(
+    (f) => f * (ALLEY.halfWidth - 1.0),
+  );
+  // Shuffle the slots deterministically.
+  for (let i = laneSlots.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [laneSlots[i], laneSlots[j]] = [laneSlots[j]!, laneSlots[i]!];
+  }
   for (let i = 0; i < COUNT; i++) {
     const fig = buildFigure(rng);
+    // Per-agent height/build variation so the crowd doesn't look cloned.
+    const scale = 0.92 + rng() * 0.2;
+    fig.root.scale.setScalar(scale);
     const agent: NpcAgent = {
       ...fig,
       z: 6 + rng() * (ALLEY.length - 14),
       dir: rng() < 0.5 ? 1 : -1,
-      lane: (rng() * 2 - 1) * (ALLEY.halfWidth - 1.1),
+      lane: laneSlots[i]! + (rng() - 0.5) * 0.3,
       speed: 0.7 + rng() * 0.7,
       phase: rng() * Math.PI * 2,
       pauseTimer: 0,
@@ -130,8 +143,9 @@ export function buildNpcs(ctx: AlleyContext): BuiltPart {
         // Bounce around the ends of the walkable stretch.
         if (a.z > ALLEY.length - 5) { a.z = ALLEY.length - 5; a.dir = -1; }
         if (a.z < 5) { a.z = 5; a.dir = 1; }
-        // Gentle lane drift so paths don't look railed.
-        a.lane += Math.sin(t * 0.13 + a.phase * 0.05) * dt * 0.15;
+        // Very gentle lane drift around the home lane (kept small so the
+        // distinct lanes never merge into one overlapping file).
+        a.lane += Math.sin(t * 0.1 + a.phase * 0.05) * dt * 0.06;
         a.lane = THREE.MathUtils.clamp(a.lane, -ALLEY.halfWidth + 1.0, ALLEY.halfWidth - 1.0);
       }
 

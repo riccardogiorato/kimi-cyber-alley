@@ -10,6 +10,7 @@ import { buildNoodleStand } from './world/noodleStand';
 import { buildProps } from './world/props';
 import { buildAtmosphere } from './world/atmosphere';
 import { buildNpcs } from './world/npcs';
+import { buildTraffic } from './world/traffic';
 import { setHullResolution } from './world/props';
 import { makeSkyTexture } from './core/textures';
 
@@ -97,6 +98,7 @@ const stand = buildNoodleStand(ctx(0x00d1e));
 collect(stand);
 collect(buildProps(ctx(0x9a09)));
 collect(buildNpcs(ctx(0x9c05)));
+collect(buildTraffic(ctx(0x7caf)));
 collect(
   buildAtmosphere(ctx(0xa710), {
     steamEmitters: stand.steamEmitters,
@@ -123,6 +125,7 @@ player.teleport(0, 2.5, Math.PI); // face down the alley (+Z)
 // Debug/screenshot hooks (harmless in production).
 (window as unknown as Record<string, unknown>).__camera = camera;
 (window as unknown as Record<string, unknown>).__player = player;
+(window as unknown as Record<string, unknown>).__scene = scene;
 
 const overlay = document.getElementById('overlay')!;
 const fpsEl = document.getElementById('fps')!;

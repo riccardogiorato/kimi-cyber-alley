@@ -20,7 +20,7 @@ export function mulberry32(seed: number): () => number {
 /** World layout constants. Alley runs along +Z, width along X, ground at y=0. */
 export const ALLEY = {
   /** Half-width of the main alley: walls at x = +/-halfWidth */
-  halfWidth: 2.4,
+  halfWidth: 3.0,
   /** Main alley length along Z, from z=0 (entrance) to z=length (T-junction) */
   length: 70,
   /** Wall height */
