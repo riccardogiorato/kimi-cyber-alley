@@ -139,6 +139,16 @@ const INK_GRADE_SHADER = {
 			// S-curve contrast: deeper shadows, snappier mids (photo-like toe/shoulder).
 			graded = mix( graded, graded * graded * ( 3.0 - 2.0 * graded ), 0.6 );
 
+			// Filmic highlight rolloff: compress the top so neon blooms toward
+			// white softly instead of clipping to a hard saturated cap.
+			graded = graded / ( 1.0 + graded * 0.22 );
+
+			// Slight shadow desaturation: photographic shadows lose chroma in
+			// the darks — kills the gamey oversaturated purple, reads filmic.
+			float desatLuma = dot( graded, vec3( 0.2126, 0.7152, 0.0722 ) );
+			float desatAmt = ( 1.0 - smoothstep( 0.0, 0.4, desatLuma ) ) * 0.28;
+			graded = mix( graded, vec3( desatLuma ), desatAmt );
+
 			// Global exposure pull-down: crush toward the reference's dark,
 			// pool-of-light mood (neon stays hot because it starts HDR-bright).
 			graded *= 0.82;
