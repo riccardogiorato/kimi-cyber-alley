@@ -199,7 +199,7 @@ function buildVendingMachine(
     makeEmissiveToon({
       color: spec.headerColor,
       emissive: spec.headerColor,
-      emissiveIntensity: 2.7,
+      emissiveIntensity: 1.5,
     }),
   );
   header.position.set(0, H - 0.2, frontZ + 0.01);
@@ -238,7 +238,7 @@ function buildVendingMachine(
   // Interior light plate behind the cans so they read through the glass.
   const backGlow = new THREE.Mesh(
     new THREE.PlaneGeometry(W - 0.14, 1.34),
-    makeEmissiveToon({ color: 0xdfefff, emissive: 0xbfe4ff, emissiveIntensity: 1.5 }),
+    makeEmissiveToon({ color: 0xdfefff, emissive: 0xbfe4ff, emissiveIntensity: 0.8 }),
   );
   backGlow.position.set(0, 0.95, frontZ - 0.2);
   g.add(backGlow);
@@ -332,7 +332,7 @@ function buildCat(rng: () => number): CatRig {
   const fur = makeToon({
     color: 0x14181d,
     emissive: 0x1d3540, // faint teal rim so the silhouette reads in the dark
-    emissiveIntensity: 0.6,
+    emissiveIntensity: 0.3,
   });
 
   // Sitting body: capsule tipped upright-ish.
@@ -378,7 +378,7 @@ function buildCat(rng: () => number): CatRig {
   g.add(tailTip);
 
   // Eyes: two tiny warm slits.
-  const eyeMat = makeEmissiveToon({ color: 0xffc86e, emissive: 0xffb84d, emissiveIntensity: 2.4 });
+  const eyeMat = makeEmissiveToon({ color: 0xffc86e, emissive: 0xffb84d, emissiveIntensity: 1.3 });
   const eyeGeo = new THREE.SphereGeometry(0.008, 6, 5);
   for (const s of [-1, 1]) {
     const eye = new THREE.Mesh(eyeGeo, eyeMat);
@@ -400,7 +400,7 @@ function buildHoverBike(): { group: THREE.Group; hull: THREE.Mesh } {
 
   const hullMat = makeToon({ color: 0x2b3f4d });
   const darkMat = makeToon({ color: 0x161d24 });
-  const accentMat = makeEmissiveToon({ color: 0xff3b30, emissive: 0xff2d20, emissiveIntensity: 3.7 });
+  const accentMat = makeEmissiveToon({ color: 0xff3b30, emissive: 0xff2d20, emissiveIntensity: 2.0 });
 
   // Low sleek main hull.
   const hull = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, 0.85, 4, 10), hullMat);
@@ -524,7 +524,7 @@ function buildLanternRows(ctx: AlleyContext, group: THREE.Group): LanternRow[] {
   const lanternMat = makeEmissiveToon({
     color: 0xff5a2a,
     emissive: 0xff4a1e,
-    emissiveIntensity: 2.5,
+    emissiveIntensity: 1.4,
   });
 
   const wireMat = new THREE.MeshBasicMaterial({ color: 0x0c1216, fog: true });
@@ -622,7 +622,7 @@ export function buildProps(ctx: AlleyContext): BuiltPart {
 
   const vendingSpecs: VendingSpec[] = [
     { x: -ALLEY.halfWidth + 0.33, z: 12, variant: 0, bodyColor: 0xb81e28, headerColor: 0xff2a35, glowColor: 0xffd9d9, hero: true },
-    { x: ALLEY.halfWidth - 0.33, z: 27, variant: 1, bodyColor: 0xe8ecf0, headerColor: 0x2f6fd0, glowColor: 0xd9ecff, hero: false },
+    { x: ALLEY.halfWidth - 0.33, z: 27, variant: 1, bodyColor: 0x9aa4ac, headerColor: 0x2f6fd0, glowColor: 0xd9ecff, hero: false },
     { x: -ALLEY.halfWidth + 0.33, z: 52, variant: 2, bodyColor: 0x1a1e24, headerColor: 0xff8c1a, glowColor: 0xffc98a, hero: false },
   ];
   for (const spec of vendingSpecs) {

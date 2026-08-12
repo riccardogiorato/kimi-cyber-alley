@@ -9,6 +9,7 @@ import { buildSigns } from './world/signs';
 import { buildNoodleStand } from './world/noodleStand';
 import { buildProps } from './world/props';
 import { buildAtmosphere } from './world/atmosphere';
+import { buildNpcs } from './world/npcs';
 import { setHullResolution } from './world/props';
 import { makeSkyTexture } from './core/textures';
 
@@ -20,9 +21,57 @@ renderer.toneMapping = THREE.NoToneMapping; // grade pass owns the final look
 document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-// No sky, no sun — deep teal void above the rooftops.
+// Late-night sky: gradient dome texture + a real starfield so stars stay crisp.
 scene.background = makeSkyTexture();
-scene.fog = new THREE.FogExp2(0x0e2028, 0.02);
+scene.fog = new THREE.FogExp2(0x141f2e, 0.032);
+
+// Starfield + milky way as geometry (Points) — a background texture alone
+// blurs 1px stars away; point sprites keep them sharp at any resolution.
+{
+  const starRng = mulberry32(0x57a2);
+  const N = 900;
+  const pos = new Float32Array(N * 3);
+  const col = new Float32Array(N * 3);
+  const R = 90;
+  for (let i = 0; i < N; i++) {
+    // upper hemisphere dome
+    const t = starRng() * Math.PI * 2;
+    const elev = Math.asin(0.06 + starRng() * 0.94); // mostly above the roofline
+    const r = R * (0.9 + starRng() * 0.1);
+    let x = Math.cos(t) * Math.cos(elev) * r;
+    let y = Math.sin(elev) * r;
+    let z = Math.sin(t) * Math.cos(elev) * r;
+    // milky way: pull a third of the stars toward a tilted band
+    let brightness = 0.35 + starRng() * 0.65;
+    if (i % 3 === 0) {
+      const along = (starRng() * 2 - 1) * R;
+      const off = (starRng() + starRng() - 1) * 22;
+      x = along * 0.8 - off * 0.3;
+      y = 18 + Math.abs(along) * 0.35 + off * 0.5;
+      z = along * 0.45 + off * 0.6;
+      brightness *= 0.75;
+    }
+    pos.set([x, y, z], i * 3);
+    const warm = starRng() < 0.18;
+    const c: [number, number, number] = warm ? [1.0, 0.85, 0.7] : [0.82, 0.9, 1.0];
+    col.set([c[0] * brightness, c[1] * brightness, c[2] * brightness], i * 3);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  const m = new THREE.PointsMaterial({
+    size: 0.55,
+    vertexColors: true,
+    sizeAttenuation: true,
+    fog: false,
+    depthWrite: false,
+    transparent: true,
+    opacity: 0.95,
+  });
+  const stars = new THREE.Points(g, m);
+  stars.frustumCulled = false;
+  scene.add(stars);
+}
 
 const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.05, 120);
 
@@ -47,6 +96,7 @@ collect(overhead);
 const stand = buildNoodleStand(ctx(0x00d1e));
 collect(stand);
 collect(buildProps(ctx(0x9a09)));
+collect(buildNpcs(ctx(0x9c05)));
 collect(
   buildAtmosphere(ctx(0xa710), {
     steamEmitters: stand.steamEmitters,
@@ -55,10 +105,16 @@ collect(
 );
 
 // Base ambient: deep teal, so unlit shadow never reads as black.
-scene.add(new THREE.AmbientLight(0x3d6a6c, 320.0));
+scene.add(new THREE.AmbientLight(0x35505e, 115.0));
 // Faint violet counter-fill from above, like spill from the choked sky.
-const skySpill = new THREE.HemisphereLight(0x4a4480, 0x142a2a, 680.0);
+const skySpill = new THREE.HemisphereLight(0x554e88, 0x1a2418, 240.0);
 scene.add(skySpill);
+
+// Warm sodium spill at the alley entrance (behind the spawn view) so the
+// first frame has a warm/cool contrast instead of a black void.
+const entranceGlow = new THREE.PointLight(0xff9a4d, 900, 30, 2);
+entranceGlow.position.set(0, 4.5, -4);
+scene.add(entranceGlow);
 
 // --- Player ------------------------------------------------------------------
 const player = new PlayerController(camera, renderer.domElement, colliders);

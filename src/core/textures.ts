@@ -973,8 +973,8 @@ export function makeGroundTexture(opts: GroundTextureOptions = {}): THREE.Canvas
   const sx = W / (xRange[1] - xRange[0]); // px per world unit across
   const sz = H / (zRange[1] - zRange[0]); // px per world unit along
 
-  // base asphalt: dark blue-grey with a warm cast near the centre (old repairs)
-  ctx.fillStyle = '#1b202c';
+  // base asphalt: near-neutral dark grey, slight warm cast (old repairs)
+  ctx.fillStyle = '#17181d';
   ctx.fillRect(0, 0, W, H);
 
   // large patchwork of old repairs — overlapping darker/lighter tar rectangles
@@ -998,7 +998,7 @@ export function makeGroundTexture(opts: GroundTextureOptions = {}): THREE.Canvas
   // aggregate speckle — dense, two-tone, some larger stones
   for (let i = 0; i < 5200; i++) {
     const l = rng();
-    ctx.fillStyle = l > 0.55 ? `rgba(${64 + rng() * 30},${72 + rng() * 30},${92 + rng() * 30},0.4)` : 'rgba(8,10,14,0.45)';
+    ctx.fillStyle = l > 0.55 ? `rgba(${58 + rng() * 26},${60 + rng() * 26},${66 + rng() * 26},0.4)` : 'rgba(8,9,12,0.45)';
     ctx.fillRect(rng() * W, rng() * H, 1 + rng() * 2.5, 1 + rng() * 2.5);
   }
 

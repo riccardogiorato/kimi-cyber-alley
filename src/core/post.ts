@@ -1,17 +1,21 @@
 import * as THREE from 'three';
 import { FXAAShader } from 'three/examples/jsm/shaders/FXAAShader.js';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { CopyShader } from 'three/examples/jsm/shaders/CopyShader.js';
 
 /**
- * InkPipeline — the alley's whole post chain in three fullscreen passes:
+ * InkPipeline — the alley's whole post chain:
  *
  *   1. Scene  -> supersampled HalfFloat RT with an attached DepthTexture.
- *   2. Ink+grade -> fullscreen shader that inks from the *second difference
+ *   2. Bloom  -> UnrealBloomPass over the HDR scene buffer (neon glow).
+ *   3. Ink+grade -> fullscreen shader that inks from the *second difference
  *      of linearised depth* (discrete Laplacian), multiplies the ink over
- *      the scene colour, then split-tones (teal/violet darks, warm
- *      pink-white highlights), lifts blacks and outputs sRGB.
- *   3. FXAA   -> resolve to the canvas.
- *
- * Deliberately NO bloom, NO depth of field, NO motion blur.
+ *      the scene+bloom colour, then split-tones (teal/violet darks, warm
+ *      pink-white highlights), lifts blacks, S-curve contrast, vignette,
+ *      and outputs sRGB.
+ *   4. FXAA   -> resolve to the canvas.
  */
 
 export interface InkPipelineOptions {
@@ -33,6 +37,7 @@ export interface InkPipelineOptions {
 const INK_GRADE_SHADER = {
   uniforms: {
     tDiffuse: { value: null as THREE.Texture | null },
+    tBloom: { value: null as THREE.Texture | null },
     tDepth: { value: null as THREE.Texture | null },
     uResolution: { value: new THREE.Vector2(1, 1) }, // supersampled px
     uCameraNear: { value: 0.1 },
@@ -57,6 +62,7 @@ const INK_GRADE_SHADER = {
 
 		varying vec2 vUv;
 		uniform sampler2D tDiffuse;
+		uniform sampler2D tBloom;
 		uniform sampler2D tDepth;
 		uniform vec2 uResolution;
 		uniform float uCameraNear;
@@ -106,8 +112,9 @@ const INK_GRADE_SHADER = {
 			edge *= 1.0 - smoothstep( uInkDistance * 0.5, uInkDistance, dist );
 			edge = clamp( edge * uInkStrength, 0.0, 1.0 );
 
-			// ---- Composite: ink multiplied over the scene colour ----------
-			vec3 inked = scene.rgb * mix( vec3( 1.0 ), uInkColor, edge );
+			// ---- Composite: ink multiplied over scene+bloom colour --------
+			vec3 bloomed = scene.rgb + texture2D( tBloom, vUv ).rgb;
+			vec3 inked = bloomed * mix( vec3( 1.0 ), uInkColor, edge );
 
 			// ---- Grade: split-tone + lifted blacks + sRGB -----------------
 			float luma = dot( inked, vec3( 0.2126, 0.7152, 0.0722 ) );
@@ -122,6 +129,14 @@ const INK_GRADE_SHADER = {
 			// Lifted blacks: raise the floor, gently compress the top so
 			// nothing clips.
 			graded = graded * ( 1.0 - uLift ) + uLift;
+
+			// S-curve contrast: deeper shadows, snappier mids (photo-like toe/shoulder).
+			graded = mix( graded, graded * graded * ( 3.0 - 2.0 * graded ), 0.42 );
+
+			// Vignette: darken the frame corners so the eye falls into the alley.
+			vec2 vuv = vUv - 0.5;
+			float vig = 1.0 - dot( vuv, vuv ) * 0.85;
+			graded *= clamp( vig, 0.35, 1.0 );
 
 			// Linear -> sRGB (scene RT holds linear HalfFloat values).
 			vec4 outColor = vec4( max( graded, 0.0 ), scene.a );
@@ -176,6 +191,9 @@ export class InkPipeline {
 
   private sceneRT: THREE.WebGLRenderTarget;
   private depthTexture: THREE.DepthTexture;
+  private bloomComposer: EffectComposer;
+  private bloomSourcePass: ShaderPass;
+  private bloomPass: UnrealBloomPass;
   private readonly inkPass: FullscreenPass;
   private readonly fxaaPass: FullscreenPass;
 
@@ -199,6 +217,15 @@ export class InkPipeline {
       depthTexture: this.depthTexture,
     });
 
+    // Bloom over the HDR scene buffer: feed sceneRT's texture into the
+    // composer (ShaderPass with CopyShader), then UnrealBloomPass adds glow.
+    this.bloomComposer = new EffectComposer(renderer);
+    this.bloomSourcePass = new ShaderPass(CopyShader);
+    this.bloomSourcePass.uniforms.tDiffuse!.value = this.sceneRT.texture;
+    this.bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.9, 0.55, 0.62);
+    this.bloomComposer.addPass(this.bloomSourcePass);
+    this.bloomComposer.addPass(this.bloomPass);
+
     this.inkPass = new FullscreenPass(INK_GRADE_SHADER);
     this.fxaaPass = new FullscreenPass(FXAAShader);
 
@@ -220,6 +247,8 @@ export class InkPipeline {
     const sw = Math.max(1, Math.floor(rw * this.supersample));
     const sh = Math.max(1, Math.floor(rh * this.supersample));
     this.sceneRT.setSize(sw, sh);
+    this.bloomComposer.setSize(sw, sh);
+    this.bloomPass.setSize(sw / 2, sh / 2);
 
     const inkU = this.inkPass.material.uniforms;
     inkU.uResolution?.value.set(sw, sh);
@@ -236,13 +265,17 @@ export class InkPipeline {
     this.renderer.setRenderTarget(this.sceneRT);
     this.renderer.render(this.scene, this.camera);
 
-    // 2. Ink (from depth) + composite + grade, straight to the canvas.
+    // 2. Bloom from the HDR scene buffer (stays linear HDR in composer RT).
+    this.bloomComposer.render();
+
+    // 3. Ink (from depth) + composite scene+bloom + grade, to the canvas.
     const inkU = this.inkPass.material.uniforms;
     if (inkU.tDiffuse) inkU.tDiffuse.value = this.sceneRT.texture;
+    if (inkU.tBloom) inkU.tBloom.value = this.bloomComposer.readBuffer.texture;
     if (inkU.tDepth) inkU.tDepth.value = this.depthTexture;
     this.inkPass.render(this.renderer, null);
 
-    // 3. FXAA resolve to screen.
+    // 4. FXAA resolve to screen.
     const fxaaU = this.fxaaPass.material.uniforms;
     if (fxaaU.tDiffuse) fxaaU.tDiffuse.value = this.sceneRT.texture;
     this.fxaaPass.render(this.renderer, null);
@@ -251,6 +284,7 @@ export class InkPipeline {
   dispose(): void {
     this.sceneRT.dispose();
     this.depthTexture.dispose();
+    this.bloomComposer.dispose();
     this.inkPass.dispose();
     this.fxaaPass.dispose();
   }
