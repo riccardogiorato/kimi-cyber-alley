@@ -1222,7 +1222,7 @@ export function makeWallGrimeTexture(opts: WallGrimeOptions = {}): THREE.CanvasT
   const S = opts.size ?? 512;
   const [canvas, ctx] = makeCanvas(S, S);
 
-  ctx.fillStyle = opts.base ?? '#414654';
+  ctx.fillStyle = opts.base ?? '#3a3f4c';
   ctx.fillRect(0, 0, S, S);
 
   // large tonal blotches — patchy old concrete / repainted sections
@@ -1230,16 +1230,16 @@ export function makeWallGrimeTexture(opts: WallGrimeOptions = {}): THREE.CanvasT
     const warm = rng() < 0.25;
     const shade = 34 + Math.floor(rng() * 30);
     ctx.fillStyle = warm
-      ? `rgba(${shade + 16},${shade + 6},${shade - 4},${0.18 + rng() * 0.22})`
-      : `rgba(${shade},${shade + 2},${shade + 10},${0.2 + rng() * 0.28})`;
+      ? `rgba(${shade + 16},${shade + 6},${shade - 4},${0.28 + rng() * 0.3})`
+      : `rgba(${shade},${shade + 2},${shade + 10},${0.3 + rng() * 0.36})`;
     ctx.fillRect(rng() * S, rng() * S, 40 + rng() * 180, 40 + rng() * 180);
   }
 
   // horizontal formwork / panel seams (cast concrete bands)
   for (let y = 0; y < S; y += 64 + Math.floor(rng() * 32)) {
-    ctx.fillStyle = 'rgba(10,12,16,0.35)';
+    ctx.fillStyle = 'rgba(8,10,14,0.55)';
     ctx.fillRect(0, y, S, 2);
-    ctx.fillStyle = 'rgba(140,150,170,0.12)';
+    ctx.fillStyle = 'rgba(150,160,180,0.2)';
     ctx.fillRect(0, y + 2, S, 1);
   }
   // a few vertical seams
