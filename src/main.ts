@@ -105,9 +105,9 @@ collect(
 );
 
 // Base ambient: deep teal, so unlit shadow never reads as black.
-scene.add(new THREE.AmbientLight(0x35505e, 115.0));
+scene.add(new THREE.AmbientLight(0x33455a, 100.0));
 // Faint violet counter-fill from above, like spill from the choked sky.
-const skySpill = new THREE.HemisphereLight(0x554e88, 0x1a2418, 240.0);
+const skySpill = new THREE.HemisphereLight(0x5a5488, 0x201f14, 210.0);
 scene.add(skySpill);
 
 // Warm sodium spill at the alley entrance (behind the spawn view) so the

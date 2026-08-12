@@ -137,7 +137,11 @@ const INK_GRADE_SHADER = {
 			graded = graded * ( 1.0 - uLift ) + uLift;
 
 			// S-curve contrast: deeper shadows, snappier mids (photo-like toe/shoulder).
-			graded = mix( graded, graded * graded * ( 3.0 - 2.0 * graded ), 0.42 );
+			graded = mix( graded, graded * graded * ( 3.0 - 2.0 * graded ), 0.6 );
+
+			// Global exposure pull-down: crush toward the reference's dark,
+			// pool-of-light mood (neon stays hot because it starts HDR-bright).
+			graded *= 0.82;
 
 			// Vignette: darken the frame corners so the eye falls into the alley.
 			vec2 vuv = vUv - 0.5;

@@ -39,9 +39,11 @@ function getGradientRamp(steps: number): THREE.DataTexture {
 
   const data = new Uint8Array(steps * 4);
   for (let i = 0; i < steps; i++) {
-    // Evenly spaced bands lifted off zero: steps=3 -> ~[0.52, 0.76, 1.0]
+    // Bands lifted well off zero and clustered high: steps=3 -> ~[0.62, 0.81, 1.0]
+    // Keeps shadow bands readable (not crushed) so the grade, not the ramp,
+    // owns the dark end — much closer to a photographic response.
     const t = steps === 1 ? 1 : i / (steps - 1);
-    const v = Math.round((0.52 + 0.48 * t) * 255);
+    const v = Math.round((0.62 + 0.38 * t) * 255);
     const o = i * 4;
     data[o] = v;
     data[o + 1] = v;
