@@ -125,11 +125,25 @@ player.teleport(0, 2.5, Math.PI); // face down the alley (+Z)
 (window as unknown as Record<string, unknown>).__player = player;
 
 const overlay = document.getElementById('overlay')!;
-player.onLockChange = (locked) => overlay.classList.toggle('hidden', locked);
-overlay.addEventListener('click', () => renderer.domElement.requestPointerLock());
+const fpsEl = document.getElementById('fps')!;
+
+if (player.isTouch) {
+  // Touch: no pointer lock. Tap to dismiss the overlay; joystick + look-drag
+  // take over. Update the copy so it doesn't mention a keyboard.
+  overlay.innerHTML =
+    'TAP TO ENTER THE ALLEY<br /><span class="hint">left thumb move &middot; right thumb look &middot; push far to run</span>';
+  overlay.addEventListener('click', () => overlay.classList.add('hidden'));
+  overlay.addEventListener('touchend', () => overlay.classList.add('hidden'), { once: true });
+} else {
+  player.onLockChange = (locked) => overlay.classList.toggle('hidden', locked);
+  overlay.addEventListener('click', () => renderer.domElement.requestPointerLock());
+}
 
 // --- Post pipeline -------------------------------------------------------------
-const pipeline = new InkPipeline(renderer, scene, camera, { supersample: 1.75 });
+// Lower supersample on touch devices — mobile GPUs can't afford 1.75x.
+const pipeline = new InkPipeline(renderer, scene, camera, {
+  supersample: player.isTouch ? 1.0 : 1.75,
+});
 
 function onResize() {
   const w = window.innerWidth;
@@ -141,11 +155,16 @@ function onResize() {
   setHullResolution(w, h);
 }
 window.addEventListener('resize', onResize);
+// iOS fires visualViewport resize (not always window resize) on toolbar
+// show/hide and orientation change — listen to both so the canvas tracks it.
+window.visualViewport?.addEventListener('resize', onResize);
 onResize();
 
 // --- Loop ----------------------------------------------------------------------
 const clock = new THREE.Clock();
 let elapsed = 0;
+let fpsAccum = 0;
+let fpsFrames = 0;
 
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05);
@@ -153,4 +172,14 @@ renderer.setAnimationLoop(() => {
   player.update(dt);
   for (const u of updaters) u!(dt, elapsed);
   pipeline.render(dt);
+
+  // FPS: exponential moving average, updated a few times a second.
+  fpsAccum += dt;
+  fpsFrames++;
+  if (fpsAccum >= 0.25) {
+    const fps = fpsFrames / fpsAccum;
+    fpsEl.textContent = `${Math.round(fps)} FPS`;
+    fpsAccum = 0;
+    fpsFrames = 0;
+  }
 });

@@ -41,6 +41,18 @@ export class PlayerController {
 
   private readonly keys = new Set<string>();
 
+  // --- Touch input state (coarse-pointer devices) -------------------------
+  /** True when running on a touch device (drives overlay text + joystick). */
+  readonly isTouch: boolean =
+    typeof window !== 'undefined' &&
+    (window.matchMedia?.('(pointer: coarse)').matches || 'ontouchstart' in window);
+  /** Virtual joystick wish direction in screen space, magnitude 0..1. */
+  private readonly touchMove = new THREE.Vector2();
+  private moveTouchId: number | null = null;
+  private lookTouchId: number | null = null;
+  private readonly moveOrigin = new THREE.Vector2();
+  private readonly lookLast = new THREE.Vector2();
+
   // Scratch objects — reused every frame, zero per-frame allocations.
   private readonly wish = new THREE.Vector3();
   private readonly fwd = new THREE.Vector3();
@@ -63,6 +75,8 @@ export class PlayerController {
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);
     window.addEventListener('blur', this.onBlur);
+
+    if (this.isTouch) this.bindTouch();
   }
 
   /** Place the player at (x, z) with an optional yaw. */
@@ -85,8 +99,13 @@ export class PlayerController {
   update(dt: number): void {
     // --- wish direction from keys, relative to yaw
     const k = this.keys;
-    const iz = (k.has('KeyW') || k.has('ArrowUp') ? 1 : 0) - (k.has('KeyS') || k.has('ArrowDown') ? 1 : 0);
-    const ix = (k.has('KeyD') || k.has('ArrowRight') ? 1 : 0) - (k.has('KeyA') || k.has('ArrowLeft') ? 1 : 0);
+    let iz = (k.has('KeyW') || k.has('ArrowUp') ? 1 : 0) - (k.has('KeyS') || k.has('ArrowDown') ? 1 : 0);
+    let ix = (k.has('KeyD') || k.has('ArrowRight') ? 1 : 0) - (k.has('KeyA') || k.has('ArrowLeft') ? 1 : 0);
+    // Touch joystick contributes an analog wish on top of (or instead of) keys.
+    if (this.touchMove.lengthSq() > 0.0001) {
+      ix += this.touchMove.x;
+      iz += this.touchMove.y;
+    }
 
     const wish = this.wish.set(0, 0, 0);
     if (ix !== 0 || iz !== 0) {
@@ -95,7 +114,9 @@ export class PlayerController {
       const fwd = this.fwd.set(-sin, 0, -cos);
       const right = this.right.set(cos, 0, -sin);
       wish.addScaledVector(fwd, iz).addScaledVector(right, ix).normalize();
-      const speed = k.has('ShiftLeft') || k.has('ShiftRight') ? RUN_SPEED : WALK_SPEED;
+      // Run on Shift, or when the touch joystick is pushed near full deflection.
+      const touchFull = this.touchMove.length() > 0.92;
+      const speed = k.has('ShiftLeft') || k.has('ShiftRight') || touchFull ? RUN_SPEED : WALK_SPEED;
       wish.multiplyScalar(speed);
     }
 
@@ -211,4 +232,77 @@ export class PlayerController {
   private onBlur = (): void => {
     this.keys.clear();
   };
+
+  // ---------------------------------------------------------------- touch
+
+  /**
+   * Virtual twin-stick: left half of the screen is a move joystick, right
+   * half is a look-drag area. No pointer lock on touch — look is driven by
+   * drag deltas. The DOM nub (`#stick .nub`) is moved for visual feedback.
+   */
+  private bindTouch(): void {
+    document.body.classList.add('touch');
+    const nub = document.querySelector<HTMLElement>('#stick .nub');
+    const STICK_RADIUS = 58; // px, matches the CSS joystick radius
+    const LOOK_SENS = 0.0042; // rad per px of look-drag
+
+    const setNub = (dx: number, dy: number) => {
+      if (nub) nub.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+    };
+
+    const onStart = (e: TouchEvent) => {
+      for (const t of Array.from(e.changedTouches)) {
+        const isLeft = t.clientX < window.innerWidth * 0.5;
+        if (isLeft && this.moveTouchId === null) {
+          this.moveTouchId = t.identifier;
+          this.moveOrigin.set(t.clientX, t.clientY);
+        } else if (!isLeft && this.lookTouchId === null) {
+          this.lookTouchId = t.identifier;
+          this.lookLast.set(t.clientX, t.clientY);
+        }
+      }
+      if (e.cancelable) e.preventDefault();
+    };
+
+    const onMove = (e: TouchEvent) => {
+      for (const t of Array.from(e.changedTouches)) {
+        if (t.identifier === this.moveTouchId) {
+          const dx = t.clientX - this.moveOrigin.x;
+          const dy = t.clientY - this.moveOrigin.y;
+          const len = Math.hypot(dx, dy);
+          const clamped = Math.min(len, STICK_RADIUS);
+          const nx = len > 0.001 ? dx / len : 0;
+          const ny = len > 0.001 ? dy / len : 0;
+          // Screen-space: +x right, +y down. Forward is -y on screen.
+          this.touchMove.set((nx * clamped) / STICK_RADIUS, (-ny * clamped) / STICK_RADIUS);
+          setNub(nx * clamped, ny * clamped);
+        } else if (t.identifier === this.lookTouchId) {
+          const dx = t.clientX - this.lookLast.x;
+          const dy = t.clientY - this.lookLast.y;
+          this.lookLast.set(t.clientX, t.clientY);
+          this.yaw -= dx * LOOK_SENS;
+          this.pitch = THREE.MathUtils.clamp(this.pitch - dy * LOOK_SENS, -PITCH_LIMIT, PITCH_LIMIT);
+        }
+      }
+      if (e.cancelable) e.preventDefault();
+    };
+
+    const onEnd = (e: TouchEvent) => {
+      for (const t of Array.from(e.changedTouches)) {
+        if (t.identifier === this.moveTouchId) {
+          this.moveTouchId = null;
+          this.touchMove.set(0, 0);
+          setNub(0, 0);
+        } else if (t.identifier === this.lookTouchId) {
+          this.lookTouchId = null;
+        }
+      }
+    };
+
+    const opts: AddEventListenerOptions = { passive: false };
+    this.dom.addEventListener('touchstart', onStart, opts);
+    this.dom.addEventListener('touchmove', onMove, opts);
+    this.dom.addEventListener('touchend', onEnd);
+    this.dom.addEventListener('touchcancel', onEnd);
+  }
 }
