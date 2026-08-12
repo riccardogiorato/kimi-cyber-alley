@@ -32,12 +32,16 @@ with sync_playwright() as p:
         "--enable-gpu",
         "--ignore-gpu-blocklist",
     ])
-    page = browser.new_page(viewport={"width": 1280, "height": 720})
+    ctx = browser.new_context(viewport={"width": 1280, "height": 720}, bypass_csp=True)
+    ctx.set_extra_http_headers({"Cache-Control": "no-cache"})
+    page = ctx.new_page()
+    page.route("**/*", lambda route: route.continue_(headers={**route.request.headers, "cache-control": "no-cache"}))
     errors = []
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
     page.goto(URL)
     page.wait_for_timeout(4000)  # let textures generate + first frames render
+    page.evaluate("() => { const o = document.getElementById('overlay'); if (o) o.style.display = 'none'; }")
 
     for name, x, z, yaw, pitch in POSES:
         page.evaluate(

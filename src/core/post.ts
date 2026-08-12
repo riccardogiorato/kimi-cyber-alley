@@ -151,7 +151,7 @@ const INK_GRADE_SHADER = {
 
 			// Global exposure pull-down: crush toward the reference's dark,
 			// pool-of-light mood (neon stays hot because it starts HDR-bright).
-			graded *= 0.82;
+			graded *= 0.7;
 
 			// Vignette: darken the frame corners so the eye falls into the alley.
 			vec2 vuv = vUv - 0.5;
@@ -244,7 +244,7 @@ export class InkPipeline {
     this.bloomSourcePass.uniforms.tDiffuse!.value = this.sceneRT.texture;
     // strength 1.0, radius 0.85 (wide soft halo that bleeds into the haze),
     // threshold 0.55 (only the hot neon/lights bloom, not the whole frame).
-    this.bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), 1.0, 0.85, 0.55);
+    this.bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.8, 0.85, 0.6);
     this.bloomComposer.addPass(this.bloomSourcePass);
     this.bloomComposer.addPass(this.bloomPass);
 

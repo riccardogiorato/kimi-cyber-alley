@@ -83,6 +83,80 @@ void main() {
 `;
 
 /**
+ * Volumetric light shaft: a tall quad, billboarded around Y only, so it keeps
+ * its slant from any view direction. Alpha is a soft vertical beam profile
+ * (bright up top where the light enters, dissolving toward the floor) with
+ * slow procedural shimmer — cheap fake god-ray, no raymarching.
+ */
+const BEAM_VERT = /* glsl */ `
+attribute float aPhase;
+varying vec2 vUv;
+varying float vPhase;
+void main() {
+  vUv = uv;
+  vPhase = aPhase;
+  // Cylindrical billboard that preserves the instance's slant: keep the
+  // instance's Y axis (the beam direction), face the camera around it.
+  vec3 center = (instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+  vec3 up = normalize((instanceMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
+  float sx = length((instanceMatrix * vec4(1.0, 0.0, 0.0, 0.0)).xyz);
+  float sy = length((instanceMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
+  vec3 toCam = normalize(cameraPosition - center);
+  vec3 right = normalize(cross(up, toCam));
+  vec3 world = center + right * position.x * sx + up * position.y * sy;
+  gl_Position = projectionMatrix * viewMatrix * vec4(world, 1.0);
+}
+`;
+
+const BEAM_FRAG = /* glsl */ `
+uniform vec3 uTint;
+uniform float uTime;
+uniform float uIntensity;
+varying vec2 vUv;
+varying float vPhase;
+void main() {
+  // Horizontal beam profile: soft edges, dense core.
+  float x = abs(vUv.x - 0.5) * 2.0;
+  float core = 1.0 - smoothstep(0.0, 1.0, x);
+  core *= core;
+  // Vertical falloff: strong at the gap (top), fading out near the floor.
+  float vert = smoothstep(0.0, 0.35, vUv.y) * (0.35 + 0.65 * vUv.y);
+  // Slow drifting shimmer so the shaft feels like moving haze, not a plane.
+  float shimmer = 0.75 + 0.25 * sin(uTime * 0.35 + vPhase * 6.2832 + vUv.y * 4.0);
+  float a = core * vert * shimmer * uIntensity;
+  if (a < 0.003) discard;
+  gl_FragColor = vec4(uTint, a);
+}
+`;
+
+const DUST_VERT = /* glsl */ `
+attribute float aSize;
+attribute float aAlpha;
+attribute vec3 aTint;
+varying float vAlpha;
+varying vec3 vTint;
+void main() {
+  vAlpha = aAlpha;
+  vTint = aTint;
+  vec4 mv = modelViewMatrix * vec4(position, 1.0);
+  gl_PointSize = aSize * (180.0 / -mv.z);
+  gl_Position = projectionMatrix * mv;
+}
+`;
+
+const DUST_FRAG = /* glsl */ `
+varying float vAlpha;
+varying vec3 vTint;
+void main() {
+  vec2 d = gl_PointCoord - 0.5;
+  float r = dot(d, d) * 4.0;
+  float a = (1.0 - smoothstep(0.4, 1.0, r)) * vAlpha;
+  if (a < 0.004) discard;
+  gl_FragColor = vec4(vTint, a);
+}
+`;
+
+/**
  * Particles & weather: steam/haze billboards, dripping pipes, light rain through tarp gaps.
  *
  * Draw-call budget (default options): 6 total
@@ -150,7 +224,7 @@ export function buildAtmosphere(ctx: AlleyContext, opts: AtmosphereOptions = {})
     grow: 1.6,
     rise: 1.3,
     life: 15,
-    maxAlpha: 0.09,
+    maxAlpha: 0.11,
     drift: 0.9,
   });
 
@@ -387,6 +461,159 @@ export function buildAtmosphere(ctx: AlleyContext, opts: AtmosphereOptions = {})
     rainSystems.push(sys);
   }
 
+  // ------------------------------------------------------------------ beams
+  // Volumetric god-ray shafts slanting down through the overhead gaps: one
+  // wide soft additive shaft per rain gap (they're where the sky/lights open
+  // up), plus a couple of accent shafts from the neon side signs. Tinted per
+  // shaft so the warm/cool split of the alley carries into the air itself.
+  interface BeamDef {
+    x: number;
+    z: number;
+    topY: number;
+    height: number;
+    width: number;
+    lean: number; // metres of x drift from top to bottom
+    tint: THREE.Color;
+    intensity: number;
+  }
+  const beamDefs: BeamDef[] = [];
+  for (const gap of gaps) {
+    beamDefs.push({
+      x: gap.x,
+      z: gap.z,
+      topY: 6.2 + rng() * 0.8,
+      height: 6.2 + rng() * 0.8,
+      width: gap.width * (1.6 + rng() * 0.5),
+      lean: 0.9 + rng() * 0.7,
+      tint: new THREE.Color(0xbfe8e2), // cool skylight through the tarps
+      intensity: 0.075 + rng() * 0.03,
+    });
+  }
+  // Warm accent shafts: lantern row near the stand, pink neon near the T.
+  beamDefs.push(
+    {
+      x: 0.9, z: 35.5, topY: 4.6, height: 4.6, width: 1.5,
+      lean: 0.7, tint: new THREE.Color(0xffc27a), intensity: 0.085,
+    },
+    {
+      x: -1.1, z: 62, topY: 5.4, height: 5.4, width: 2.2,
+      lean: 1.1, tint: new THREE.Color(0xf08ac0), intensity: 0.07,
+    },
+  );
+
+  // Bucket beams by tint so each bucket is one draw call with one uTint.
+  const beamBuckets = new Map<number, BeamDef[]>();
+  for (const b of beamDefs) {
+    const key = b.tint.getHex();
+    const arr = beamBuckets.get(key) ?? [];
+    arr.push(b);
+    beamBuckets.set(key, arr);
+  }
+  const beamMeshes: { mesh: THREE.InstancedMesh; mat: THREE.ShaderMaterial }[] = [];
+  {
+    // Rebuild geometry per bucket (instanceCount differs); cheap — few beams.
+    const m = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const e = new THREE.Euler();
+    const p = new THREE.Vector3();
+    const s = new THREE.Vector3();
+    for (const defs of beamBuckets.values()) {
+      const geo = new THREE.InstancedBufferGeometry();
+      const quad = new THREE.PlaneGeometry(1, 1);
+      quad.translate(0, 0.5, 0);
+      geo.setIndex(quad.getIndex());
+      geo.setAttribute('position', quad.getAttribute('position'));
+      geo.setAttribute('uv', quad.getAttribute('uv'));
+      const phases = new THREE.InstancedBufferAttribute(new Float32Array(defs.length), 1);
+      for (let i = 0; i < defs.length; i++) phases.setX(i, rng());
+      geo.setAttribute('aPhase', phases);
+      geo.instanceCount = defs.length;
+      const first = defs[0];
+      const mat = new THREE.ShaderMaterial({
+        uniforms: {
+          uTint: { value: first ? first.tint : new THREE.Color(0xffffff) },
+          uTime: { value: 0 },
+          uIntensity: { value: first ? first.intensity : 0.08 },
+        },
+        vertexShader: BEAM_VERT,
+        fragmentShader: BEAM_FRAG,
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+      });
+      const mesh = new THREE.InstancedMesh(geo, mat, defs.length);
+      for (let i = 0; i < defs.length; i++) {
+        const d = defs[i];
+        if (!d) continue;
+        // Slant the beam by leaning its top toward -x (matches rain SLANT).
+        e.set(0, 0, Math.atan2(d.lean, d.height));
+        q.setFromEuler(e);
+        p.set(d.x + d.lean / 2, d.topY - d.height, d.z);
+        s.set(d.width, Math.hypot(d.height, d.lean), 1);
+        m.compose(p, q, s);
+        mesh.setMatrixAt(i, m);
+      }
+      mesh.frustumCulled = false;
+      mesh.renderOrder = 19; // under steam so haze softens the shafts
+      group.add(mesh);
+      beamMeshes.push({ mesh, mat });
+    }
+  }
+
+  // ------------------------------------------------------------------ dust
+  // Floating dust motes: tiny slow points drifting inside the light pools
+  // under each beam. Deterministic drift: position is a pure function of t.
+  const MOTES_PER_BEAM = 26;
+  const moteCount = beamDefs.length * MOTES_PER_BEAM;
+  const moteBase = new Float32Array(moteCount * 3);
+  const moteSeed = new Float32Array(moteCount * 4); // phase, speed, radius, wobble
+  const moteTint = new Float32Array(moteCount * 3);
+  {
+    let i = 0;
+    for (const b of beamDefs) {
+      for (let k = 0; k < MOTES_PER_BEAM; k++, i++) {
+        const o = i * 3;
+        moteBase[o] = b.x + (rng() - 0.5) * b.width * 0.9;
+        moteBase[o + 1] = 0.25 + rng() * (b.topY - 1.0);
+        moteBase[o + 2] = b.z + (rng() - 0.5) * 1.4;
+        const so = i * 4;
+        moteSeed[so] = rng() * Math.PI * 2;
+        moteSeed[so + 1] = 0.05 + rng() * 0.12; // slow fall speed (m/s)
+        moteSeed[so + 2] = 0.08 + rng() * 0.22; // horizontal drift radius
+        moteSeed[so + 3] = 0.4 + rng() * 0.8; // wobble frequency
+        moteTint[o] = b.tint.r;
+        moteTint[o + 1] = b.tint.g;
+        moteTint[o + 2] = b.tint.b;
+      }
+    }
+  }
+  const dustGeo = new THREE.BufferGeometry();
+  const dustPos = new THREE.BufferAttribute(new Float32Array(moteCount * 3), 3);
+  const dustSize = new THREE.BufferAttribute(new Float32Array(moteCount), 1);
+  const dustAlpha = new THREE.BufferAttribute(new Float32Array(moteCount), 1);
+  const dustTintAttr = new THREE.BufferAttribute(moteTint, 3);
+  dustPos.setUsage(THREE.DynamicDrawUsage);
+  dustAlpha.setUsage(THREE.DynamicDrawUsage);
+  for (let i = 0; i < moteCount; i++) dustSize.setX(i, 0.008 + rng() * 0.014);
+  dustGeo.setAttribute('position', dustPos);
+  dustGeo.setAttribute('aSize', dustSize);
+  dustGeo.setAttribute('aAlpha', dustAlpha);
+  dustGeo.setAttribute('aTint', dustTintAttr);
+  const dustMat = new THREE.ShaderMaterial({
+    vertexShader: DUST_VERT,
+    fragmentShader: DUST_FRAG,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+  const dust = new THREE.Points(dustGeo, dustMat);
+  dust.frustumCulled = false;
+  dust.renderOrder = 23;
+  group.add(dust);
+  const dustPosArr = dustPos.array as Float32Array;
+  const dustAlphaArr = dustAlpha.array as Float32Array;
+
   // ------------------------------------------------------------------ update
   const update = (dt: number, t: number): void => {
     void dt; // all motion is a deterministic function of elapsed t
@@ -473,6 +700,34 @@ export function buildAtmosphere(ctx: AlleyContext, opts: AtmosphereOptions = {})
       sys.posAttr.needsUpdate = true;
       sys.colAttr.needsUpdate = true;
     }
+
+    // Beams: only the shimmer clock animates (geometry is static).
+    for (const b of beamMeshes) b.mat.uniforms.uTime!.value = t;
+
+    // Dust: slow sink + gentle horizontal wobble, twinkling alpha. Pure
+    // function of t and per-mote seeds — deterministic, no allocations.
+    for (let i = 0; i < moteCount; i++) {
+      const o = i * 3;
+      const so = i * 4;
+      const phase = moteSeed[so] ?? 0;
+      const fall = moteSeed[so + 1] ?? 0.1;
+      const radius = moteSeed[so + 2] ?? 0.1;
+      const wobble = moteSeed[so + 3] ?? 0.6;
+      const baseY = moteBase[o + 1] ?? 1;
+      // Sink and wrap within a 3m band below the mote's base height.
+      const span = 3.0;
+      const f = (t * fall + phase) % span; // 0..span
+      const y = baseY - f;
+      dustPosArr[o] = (moteBase[o] ?? 0) + Math.sin(t * wobble + phase) * radius;
+      dustPosArr[o + 1] = y;
+      dustPosArr[o + 2] = (moteBase[o + 2] ?? 0) + Math.cos(t * wobble * 0.7 + phase * 1.7) * radius;
+      // Twinkle + fade near the wrap seam so motes never pop.
+      const seam = Math.sin((f / span) * Math.PI);
+      const twinkle = 0.55 + 0.45 * Math.sin(t * (wobble * 2.2) + phase * 3.1);
+      dustAlphaArr[i] = 0.5 * seam * twinkle;
+    }
+    dustPos.needsUpdate = true;
+    dustAlpha.needsUpdate = true;
   };
 
   return { group, update };

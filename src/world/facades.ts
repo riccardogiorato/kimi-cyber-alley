@@ -149,6 +149,12 @@ const DOOR_FRAME_COLOR = new THREE.Color(0x33393d);
 const SHUTTER_COLOR = new THREE.Color(0x4a5054);
 const STAIR_COLOR = new THREE.Color(0x2e363a);
 const SILHOUETTE_COLOR = new THREE.Color(0x0a1517);
+const CORNICE_COLOR = new THREE.Color(0x556064);   // ledges / floor bands
+const SILL_COLOR = new THREE.Color(0x4b5457);      // window sills
+const BLIND_COLOR = new THREE.Color(0x8a8474);     // venetian blind slats
+const TANK_COLOR = new THREE.Color(0x6b5a4a);      // rusty rooftop water tanks
+const BULKHEAD_COLOR = new THREE.Color(0x39434a);  // rooftop stair bulkheads
+const FIRE_ESCAPE_COLOR = new THREE.Color(0x232a2e); // dark painted metal
 
 /* ------------------------------------------------------------------ */
 /* buildFacades                                                        */
@@ -193,7 +199,8 @@ export function buildFacades(ctx: AlleyContext): BuiltPart {
       // facade rhythm: step the wall face in/out so the silhouette isn't a flat corridor
       const step = rng() < 0.45 ? 0 : (0.15 + rng() * 0.25) * (rng() < 0.65 ? 1 : -0.6);
       const faceX = side * (ALLEY.halfWidth + step);
-      const h = ALLEY.wallHeight - 1 + rng() * 2;
+      // wider height spread so the roofline (and the sky gap) staggers
+      const h = ALLEY.wallHeight - 3 + rng() * 8;
       const tint = pick(WALL_TINTS);
       wallEntries.push({
         geo: unitBox,
@@ -219,7 +226,7 @@ export function buildFacades(ctx: AlleyContext): BuiltPart {
       const segLen = Math.min(4 + rng() * 3, span - x);
       const step = rng() < 0.5 ? 0 : 0.12 + rng() * 0.2;
       const faceZ = -0.3 - step; // just behind the spawn collider
-      const h = ALLEY.wallHeight - 1 + rng() * 2;
+      const h = ALLEY.wallHeight - 2 + rng() * 6;
       wallEntries.push({
         geo: unitBox,
         matrix: composeMat(x + segLen / 2, h / 2, faceZ - 0.175, 0, 0, 0, segLen, h, 0.35),
@@ -246,7 +253,7 @@ export function buildFacades(ctx: AlleyContext): BuiltPart {
       const segLen = Math.min(5 + rng() * 3, crossSpan - x);
       const step = rng() < 0.5 ? 0 : 0.15 + rng() * 0.3;
       const faceZ = crossZ1 + step;
-      const h = ALLEY.wallHeight - 2 + rng() * 3;
+      const h = ALLEY.wallHeight - 3 + rng() * 7;
       wallEntries.push({
         geo: unitBox,
         matrix: composeMat(x + segLen / 2, h / 2, faceZ + 0.175, 0, 0, 0, segLen, h, 0.35),
@@ -265,7 +272,7 @@ export function buildFacades(ctx: AlleyContext): BuiltPart {
     const x1 = side * crossSpan;
     const len = Math.abs(x1 - x0);
     const cx = (x0 + x1) / 2;
-    const h = ALLEY.wallHeight - 1.5 + rng() * 2;
+    const h = ALLEY.wallHeight - 2.5 + rng() * 5;
     wallEntries.push({
       geo: unitBox,
       matrix: composeMat(cx, h / 2, crossZ0 - 0.175, 0, 0, 0, len, h, 0.35),
@@ -361,20 +368,66 @@ export function buildFacades(ctx: AlleyContext): BuiltPart {
   function decorateFace(f: Face): void {
     const yaw = yawOf(f);
 
-    // windows: frame + dark pane, some lit warm/cool
-    for (let y = 4.1; y < f.h - 1.6; y += 3.1) {
-      for (let u = 1.1; u < f.len - 1.0; u += 1.9) {
-        if (rng() < 0.45) continue;
+    // ---- horizontal structural bands: break the wall into floors ----
+    // a shallow string-course ledge at each floor line, plus a heavier
+    // cornice at the parapet so the roofline reads as architecture
+    for (let y = 3.0; y < f.h - 0.5; y += 3.0) {
+      const p = onFace(f, f.len / 2, y, 0.045);
+      boxKit.add(composeMat(p.x, p.y, p.z, 0, yaw, 0, f.len, 0.09, 0.09), CORNICE_COLOR);
+    }
+    {
+      const p = onFace(f, f.len / 2, f.h - 0.28, 0.09);
+      boxKit.add(composeMat(p.x, p.y, p.z, 0, yaw, 0, f.len, 0.2, 0.18), CORNICE_COLOR);
+    }
+
+    // ---- windows: recessed openings, varied size/mullions, some lit ----
+    // interior plane sits 0.22 INTO the wall so frames cast a real reveal;
+    // dark glass sits slightly proud of it to catch the toon rim.
+    for (let y = 4.1; y < f.h - 1.6; y += 3.0) {
+      for (let u = 1.2; u < f.len - 1.1; u += 1.9) {
+        if (rng() < 0.38) continue;
+        const w = 0.85 + rng() * 0.5;            // width scale
+        const hgt = 0.85 + rng() * 0.45;         // height scale
+        const mullions = rng() < 0.4 ? 2 : 1;    // some double-mullioned
         const p = onFace(f, u, y, 0.05);
-        frameKit.add(composeMat(p.x, p.y, p.z, 0, yaw, 0, 1, 1, 1), KIT_DARK);
-        if (rng() < 0.15) {
-          const pp = onFace(f, u, y, 0.045);
-          (rng() < 0.7 ? litWarmKit : litCoolKit).add(
-            composeMat(pp.x, pp.y, pp.z, 0, yaw, 0, 1, 1, 1), WHITE,
+        frameKit.add(composeMat(p.x, p.y, p.z, 0, yaw, 0, w, hgt, mullions), KIT_DARK);
+        // sill ledge under the opening
+        const ps = onFace(f, u, y - 0.615 * hgt - 0.05, 0.08);
+        boxKit.add(composeMat(ps.x, ps.y, ps.z, 0, yaw, 0, w * 1.06, 0.06, 0.16), SILL_COLOR);
+
+        const roll = rng();
+        if (roll < 0.32) {
+          // lit interior (warm room or cool fluorescent), recessed deep
+          const pp = onFace(f, u, y, -0.17);
+          (rng() < 0.68 ? litWarmKit : litCoolKit).add(
+            composeMat(pp.x, pp.y, pp.z, 0, yaw, 0, w, hgt, 1), WHITE,
           );
+          // venetian blinds across the upper half of some lit windows
+          if (rng() < 0.45) {
+            const top = y + 0.5 * hgt;
+            const blindH = 0.28 + rng() * 0.3;
+            for (let by = top - 0.05; by > top - blindH; by -= 0.07) {
+              const pb = onFace(f, u, by, 0.015);
+              boxKit.add(composeMat(pb.x, pb.y, pb.z, 0.35, yaw, 0, 0.8 * w, 0.045, 0.015), BLIND_COLOR);
+            }
+          }
         } else {
+          // dark glass pane
           const pp = onFace(f, u, y, 0.03);
-          darkEntries.push({ geo: unitPlane, matrix: composeMat(pp.x, pp.y, pp.z, 0, yaw, 0, 0.82, 1.08, 1) });
+          darkEntries.push({ geo: unitPlane, matrix: composeMat(pp.x, pp.y, pp.z, 0, yaw, 0, 0.82 * w, 1.08 * hgt, 1) });
+          // closed curtain: lighter plane over part of the dark glass
+          if (rng() < 0.3) {
+            const pc = onFace(f, u + (rng() - 0.5) * 0.2, y + (rng() - 0.5) * 0.3, 0.035);
+            boxKit.add(composeMat(pc.x, pc.y, pc.z, 0, yaw, 0, 0.45 * w, 0.6 * hgt, 0.02), BLIND_COLOR);
+          }
+        }
+
+        // AC unit sitting in the lower half of the opening
+        if (rng() < 0.13) {
+          const pa = onFace(f, u, y - 0.28 * hgt, 0.18);
+          boxKit.add(composeMat(pa.x, pa.y, pa.z, 0, yaw, 0, 0.6 * w, 0.4, 0.3), pick(AC_COLORS));
+          const pf = onFace(f, u, y - 0.28 * hgt, 0.34);
+          acFanKit.add(composeMat(pf.x, pf.y, pf.z, 0, yaw, 0, 0.8, 0.8, 0.8), KIT_DARK);
         }
       }
     }
@@ -486,37 +539,106 @@ export function buildFacades(ctx: AlleyContext): BuiltPart {
     }
 
     scatterPaper(f);
+
+    // ---- rooftop clutter: silhouettes above the parapet ----
+    // water tanks, stair bulkheads, antenna masts break the roofline so the
+    // sky gap between buildings reads irregular.
+    if (f.len > 3.5 && rng() < 0.75) {
+      const u = 0.8 + rng() * Math.max(0.1, f.len - 1.6);
+      const roll = rng();
+      if (roll < 0.4) {
+        // rooftop water tank: cylinder body + legs + conical cap
+        const r = 0.5 + rng() * 0.3;
+        const bodyH = 1.1 + rng() * 0.5;
+        const legH = 0.5;
+        const back = 0.4 + rng() * 0.4; // set back from the parapet
+        const pb = onFace(f, u, f.h + legH + bodyH / 2, -back);
+        pipeKit.add(composeMat(pb.x, pb.y, pb.z, 0, yaw, 0, r, bodyH, r), TANK_COLOR);
+        const pc = onFace(f, u, f.h + legH + bodyH + 0.16, -back);
+        pipeKit.add(composeMat(pc.x, pc.y, pc.z, 0, yaw, 0, r * 0.25, 0.32, r * 1.02), TANK_COLOR);
+        for (const [du, dn] of [[-r * 0.7, -r * 0.7], [r * 0.7, -r * 0.7], [-r * 0.7, r * 0.7], [r * 0.7, r * 0.7]] as const) {
+          const pl = onFace(f, u + du, f.h + legH / 2, -back + dn);
+          boxKit.add(composeMat(pl.x, pl.y, pl.z, 0, yaw, 0, 0.07, legH, 0.07), KIT_DARK);
+        }
+      } else if (roll < 0.75) {
+        // stair bulkhead / elevator overrun box
+        const bw = 1.4 + rng() * 1.2;
+        const bh = 1.6 + rng() * 1.2;
+        const back = 0.6 + rng() * 0.8;
+        const pb = onFace(f, u, f.h + bh / 2, -back);
+        boxKit.add(composeMat(pb.x, pb.y, pb.z, 0, yaw, 0, bw, bh, 1.2 + rng() * 0.8), BULKHEAD_COLOR);
+      } else {
+        // antenna mast with cross-arms
+        const mh = 2.5 + rng() * 3.5;
+        const back = 0.3 + rng() * 0.5;
+        const pm = onFace(f, u, f.h + mh / 2, -back);
+        pipeKit.add(composeMat(pm.x, pm.y, pm.z, 0, yaw, 0, 0.03, mh, 0.03), KIT_DARK);
+        const nArms = 1 + Math.floor(rng() * 3);
+        for (let a = 0; a < nArms; a++) {
+          const pa = onFace(f, u, f.h + mh * (0.55 + 0.4 * rng()), -back);
+          boxKit.add(composeMat(pa.x, pa.y, pa.z, 0, yaw + rng() * 0.6, 0, 0.5 + rng() * 0.6, 0.03, 0.03), KIT_DARK);
+        }
+      }
+    }
   }
 
   for (const f of faces) decorateFace(f);
 
-  /* ---------------- recessed doorways (one shuttered) ---------------- */
+  /* ---------------- recessed doorways + storefronts ---------------- */
 
   const doorFaces: { f: Face; u: number }[] = [];
   for (const f of mainFaces) {
-    if (doorFaces.length < 3 && f.len > 6 && rng() < 0.3) {
+    if (doorFaces.length < 4 && f.len > 6 && rng() < 0.4) {
       doorFaces.push({ f, u: f.len / 2 });
     }
   }
-  while (doorFaces.length < 2 && mainFaces.length > 0) {
+  while (doorFaces.length < 3 && mainFaces.length > 0) {
     doorFaces.push({ f: pick(mainFaces), u: 2 + rng() * 3 });
   }
   doorFaces.forEach(({ f, u }, idx) => {
     const yaw = yawOf(f);
-    const p = onFace(f, u, 1.15, 0.02);
-    darkEntries.push({ geo: unitPlane, matrix: composeMat(p.x, p.y, p.z, 0, yaw, 0, 1.2, 2.3, 1) });
-    const lintel = onFace(f, u, 2.38, 0.05);
-    boxKit.add(composeMat(lintel.x, lintel.y, lintel.z, 0, yaw, 0, 1.44, 0.16, 0.1), DOOR_FRAME_COLOR);
-    for (const du of [-0.68, 0.68]) {
-      const j = onFace(f, u + du, 1.15, 0.05);
-      boxKit.add(composeMat(j.x, j.y, j.z, 0, yaw, 0, 0.12, 2.3, 0.1), DOOR_FRAME_COLOR);
+    const storefront = idx === 1 && f.len > 7; // one wider glazed shopfront
+    const w = storefront ? 2.6 : 1.2;
+    const hgt = storefront ? 2.5 : 2.3;
+    // recessed dark opening set INTO the wall (reads as a real reveal)
+    const p = onFace(f, u, hgt / 2, -0.12);
+    darkEntries.push({ geo: unitPlane, matrix: composeMat(p.x, p.y, p.z, 0, yaw, 0, w, hgt, 1) });
+    // reveal side walls inside the recess
+    for (const du of [-w / 2, w / 2]) {
+      const r = onFace(f, u + du, hgt / 2, -0.06);
+      boxKit.add(composeMat(r.x, r.y, r.z, 0, yaw, 0, 0.06, hgt, 0.14), DOOR_FRAME_COLOR);
     }
-    if (idx === 0) {
-      // shutter door drawn with instanced slats
-      for (let sy = 0.15; sy < 2.25; sy += 0.115) {
-        const s = onFace(f, u, sy, 0.045);
-        boxKit.add(composeMat(s.x, s.y, s.z, 0, yaw, 0, 1.14, 0.09, 0.03), SHUTTER_COLOR);
+    // lintel + jambs
+    const lintel = onFace(f, u, hgt + 0.08, 0.05);
+    boxKit.add(composeMat(lintel.x, lintel.y, lintel.z, 0, yaw, 0, w + 0.24, 0.16, 0.1), DOOR_FRAME_COLOR);
+    for (const du of [-w / 2 - 0.08, w / 2 + 0.08]) {
+      const j = onFace(f, u + du, hgt / 2, 0.05);
+      boxKit.add(composeMat(j.x, j.y, j.z, 0, yaw, 0, 0.12, hgt, 0.1), DOOR_FRAME_COLOR);
+    }
+    // threshold step
+    const step = onFace(f, u, 0.05, 0.16);
+    boxKit.add(composeMat(step.x, step.y, step.z, 0, yaw, 0, w + 0.2, 0.1, 0.32), SILL_COLOR);
+
+    if (storefront) {
+      // mullioned glazing bars + a warm interior glow behind
+      const pg = onFace(f, u, hgt / 2, -0.2);
+      litWarmKit.add(composeMat(pg.x, pg.y, pg.z, 0, yaw, 0, w / 0.82, hgt / 1.08, 1), WHITE);
+      for (const du of [-w / 4, 0, w / 4]) {
+        const m = onFace(f, u + du, hgt / 2, 0.02);
+        boxKit.add(composeMat(m.x, m.y, m.z, 0, yaw, 0, 0.06, hgt, 0.06), DOOR_FRAME_COLOR);
       }
+      const mh = onFace(f, u, hgt * 0.62, 0.02);
+      boxKit.add(composeMat(mh.x, mh.y, mh.z, 0, yaw, 0, w, 0.06, 0.06), DOOR_FRAME_COLOR);
+    } else if (idx === 0) {
+      // shutter door drawn with instanced slats
+      for (let sy = 0.15; sy < hgt - 0.05; sy += 0.115) {
+        const s = onFace(f, u, sy, 0.02);
+        boxKit.add(composeMat(s.x, s.y, s.z, 0, yaw, 0, w - 0.06, 0.09, 0.03), SHUTTER_COLOR);
+      }
+    } else if (rng() < 0.6) {
+      // door ajar: narrow lit slit along one jamb
+      const slit = onFace(f, u + w / 2 - 0.1, hgt / 2, -0.05);
+      litWarmKit.add(composeMat(slit.x, slit.y, slit.z, 0, yaw, 0, 0.12, hgt * 0.9, 1), WHITE);
     }
   });
 

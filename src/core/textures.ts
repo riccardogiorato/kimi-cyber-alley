@@ -1443,6 +1443,83 @@ export function makeWallGrimeTexture(opts: WallGrimeOptions = {}): THREE.CanvasT
     ctx.fill();
   }
 
+  // stronger rust bleeds — wider, longer, with darker cores
+  for (let i = 0; i < 6; i++) {
+    const x = rng() * S;
+    const y = rng() * S * 0.5;
+    const len = 60 + rng() * 160;
+    const w = 3 + rng() * 7;
+    const g = ctx.createLinearGradient(0, y, 0, y + len);
+    g.addColorStop(0, 'rgba(96,52,34,0.65)');
+    g.addColorStop(0.35, 'rgba(122,74,56,0.42)');
+    g.addColorStop(1, 'rgba(122,74,56,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(x - w / 2, y, w, len);
+    // dark saturated core line
+    const g2 = ctx.createLinearGradient(0, y, 0, y + len * 0.6);
+    g2.addColorStop(0, 'rgba(70,36,22,0.5)');
+    g2.addColorStop(1, 'rgba(70,36,22,0)');
+    ctx.fillStyle = g2;
+    ctx.fillRect(x - w * 0.2, y, w * 0.4, len * 0.6);
+  }
+
+  // water leak tide-lines — horizontal damp bands with hard top edges
+  for (let i = 0; i < 3; i++) {
+    const y = S * (0.35 + rng() * 0.5);
+    const h = 8 + rng() * 22;
+    const g = ctx.createLinearGradient(0, y, 0, y + h);
+    g.addColorStop(0, 'rgba(10,12,14,0.5)');
+    g.addColorStop(0.25, 'rgba(10,12,14,0.28)');
+    g.addColorStop(1, 'rgba(10,12,14,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, y, S, h);
+    ctx.fillStyle = 'rgba(6,8,10,0.4)';
+    ctx.fillRect(0, y, S, 1.5);
+  }
+
+  // patched repairs — slightly off-tone rectangles with hard edges
+  for (let i = 0; i < 4; i++) {
+    const x = rng() * S;
+    const y = rng() * S;
+    const w = 30 + rng() * 90;
+    const h = 24 + rng() * 70;
+    const shade = 52 + Math.floor(rng() * 26);
+    ctx.fillStyle = `rgba(${shade},${shade + 3},${shade + 12},${0.35 + rng() * 0.25})`;
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = 'rgba(8,10,13,0.4)';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(x, y, w, h);
+  }
+
+  // peeling paint flakes — small curled highlights with dark under-shadows
+  for (let i = 0; i < 12; i++) {
+    const x = rng() * S;
+    const y = rng() * S;
+    const w = 4 + rng() * 12;
+    const h = 3 + rng() * 8;
+    ctx.fillStyle = 'rgba(12,14,18,0.5)';
+    ctx.fillRect(x + 1, y + 1, w, h);
+    ctx.fillStyle = `rgba(${140 + rng() * 40},${140 + rng() * 36},${130 + rng() * 30},${0.2 + rng() * 0.2})`;
+    ctx.fillRect(x, y, w, h);
+  }
+
+  // torn decal remnants — faded ghost rectangles with ragged edges
+  for (let i = 0; i < 3; i++) {
+    const x = rng() * S;
+    const y = rng() * S * 0.8;
+    const w = 26 + rng() * 46;
+    const h = 20 + rng() * 34;
+    ctx.fillStyle = `rgba(${150 + rng() * 40},${140 + rng() * 30},${110 + rng() * 30},${0.08 + rng() * 0.1})`;
+    ctx.fillRect(x, y, w, h);
+    // ragged missing corners — knock chips back out with the wall base tone
+    ctx.fillStyle = opts.base ?? '#3a3f4c';
+    for (let k = 0; k < 5; k++) {
+      ctx.beginPath();
+      ctx.arc(x + rng() * w, y + (rng() < 0.5 ? 0 : h), 3 + rng() * 7, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
   // streak stains running down (rain grime)
   for (let i = 0; i < 18; i++) {
     const x = rng() * S;
@@ -1472,6 +1549,410 @@ export function makeWallGrimeTexture(opts: WallGrimeOptions = {}): THREE.CanvasT
   });
   if (opts.seed !== undefined) textureCache.set(key, t);
   return t;
+}
+
+// ---------------------------------------------------------------------------
+// 7b. Weathered brick (tileable)
+// ---------------------------------------------------------------------------
+
+export interface BrickOptions extends SeedOptions {
+  /** Mortar colour. Default pale grey. */
+  mortar?: string;
+  /** Canvas size (square). Default 512. */
+  size?: number;
+  repeat?: [number, number];
+}
+
+/**
+ * Weathered running-bond brick. Mortar grid drawn first, then per-brick
+ * tonal variation, chips/spalls, dark damp stains and a soot gradient.
+ * RepeatWrapping on both axes; brick course height divides the canvas so
+ * rows wrap cleanly.
+ */
+export function makeBrickTexture(opts: BrickOptions = {}): THREE.CanvasTexture {
+  const rng = resolveRng(opts);
+  const S = opts.size ?? 512;
+  const [canvas, ctx] = makeCanvas(S, S);
+
+  const mortar = opts.mortar ?? '#6e6a62';
+  ctx.fillStyle = mortar;
+  ctx.fillRect(0, 0, S, S);
+
+  // mortar weathering — darkened, crumbly joints
+  for (let i = 0; i < 900; i++) {
+    ctx.fillStyle = rng() > 0.5 ? 'rgba(40,38,34,0.25)' : 'rgba(120,116,108,0.2)';
+    ctx.fillRect(rng() * S, rng() * S, 1 + rng() * 2, 1 + rng() * 2);
+  }
+
+  const courseH = 32; // must divide S for clean vertical wrap (512/32 = 16)
+  const brickW = 96;
+  const joint = 4;
+  const rows = S / courseH;
+
+  for (let r = 0; r < rows; r++) {
+    const y = r * courseH;
+    const offset = r % 2 === 0 ? 0 : brickW / 2;
+    // start one brick before the edge so the wrapped course is seamless
+    for (let x = -brickW + offset; x < S + brickW; x += brickW) {
+      // per-brick hue/value jitter around a fired-clay base
+      const v = 0.72 + rng() * 0.5;
+      const warm = rng() * 22 - 8;
+      const rr = Math.round(118 * v + warm);
+      const gg = Math.round(66 * v + warm * 0.4);
+      const bb = Math.round(52 * v);
+      ctx.fillStyle = `rgb(${rr},${gg},${bb})`;
+      ctx.fillRect(x + joint / 2, y + joint / 2, brickW - joint, courseH - joint);
+
+      // top-light bevel + bottom shadow give the brick relief
+      ctx.fillStyle = 'rgba(255,240,220,0.10)';
+      ctx.fillRect(x + joint / 2, y + joint / 2, brickW - joint, 2);
+      ctx.fillStyle = 'rgba(0,0,0,0.22)';
+      ctx.fillRect(x + joint / 2, y + courseH - joint / 2 - 2, brickW - joint, 2);
+
+      // kiln darkening / face blotches
+      if (rng() < 0.4) {
+        ctx.fillStyle = `rgba(${30 + rng() * 30},${18 + rng() * 16},${14 + rng() * 12},${0.15 + rng() * 0.25})`;
+        ctx.beginPath();
+        ctx.ellipse(
+          x + joint + rng() * (brickW - joint * 2),
+          y + joint + rng() * (courseH - joint * 2),
+          6 + rng() * 22,
+          3 + rng() * 8,
+          rng() * 0.6,
+          0,
+          Math.PI * 2,
+        );
+        ctx.fill();
+      }
+
+      // chipped / spalled bricks — knocked-out corner with pale core
+      if (rng() < 0.16) {
+        const cx = x + joint + rng() * (brickW - joint * 2);
+        const cy = y + joint + rng() * (courseH - joint * 2);
+        const cr = 3 + rng() * 7;
+        ctx.fillStyle = 'rgba(24,16,12,0.6)';
+        ctx.beginPath();
+        ctx.arc(cx, cy, cr, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = `rgba(${170 + rng() * 30},${120 + rng() * 24},${96 + rng() * 20},0.85)`;
+        ctx.beginPath();
+        ctx.arc(cx - cr * 0.2, cy - cr * 0.2, cr * 0.62, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
+  // dark damp stains rising from the bottom + weeping streaks
+  const damp = ctx.createLinearGradient(0, S * 0.55, 0, S);
+  damp.addColorStop(0, 'rgba(12,14,12,0)');
+  damp.addColorStop(1, 'rgba(12,14,12,0.5)');
+  ctx.fillStyle = damp;
+  ctx.fillRect(0, S * 0.55, S, S * 0.45);
+  for (let i = 0; i < 10; i++) {
+    const x = rng() * S;
+    const w = 3 + rng() * 14;
+    const len = S * (0.25 + rng() * 0.55);
+    const g = ctx.createLinearGradient(0, 0, 0, len);
+    g.addColorStop(0, 'rgba(14,16,14,0.4)');
+    g.addColorStop(1, 'rgba(14,16,14,0)');
+    ctx.save();
+    ctx.translate(x, 0);
+    ctx.fillStyle = g;
+    ctx.fillRect(-w / 2, 0, w, len);
+    ctx.restore();
+  }
+
+  // efflorescence — pale salty bloom patches
+  for (let i = 0; i < 6; i++) {
+    const x = rng() * S;
+    const y = rng() * S;
+    ctx.fillStyle = `rgba(210,206,196,${0.06 + rng() * 0.1})`;
+    ctx.beginPath();
+    ctx.ellipse(x, y, 14 + rng() * 34, 8 + rng() * 20, rng() * 0.8, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  return toTexture(canvas, {
+    wrapS: THREE.RepeatWrapping,
+    wrapT: THREE.RepeatWrapping,
+    repeat: opts.repeat,
+    anisotropy: 8,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// 7c. Ceramic wall tile (tileable)
+// ---------------------------------------------------------------------------
+
+export interface TileOptions extends SeedOptions {
+  /** Grout colour. Default dirty off-white. */
+  grout?: string;
+  /** Canvas size (square). Default 512. */
+  size?: number;
+  repeat?: [number, number];
+}
+
+/**
+ * Small-grid ceramic wall tiles: per-tile hue/value jitter, grout lines,
+ * a few cracked or missing tiles and glossy sheen patches that catch light.
+ * RepeatWrapping on both axes; tile pitch divides the canvas so it wraps.
+ */
+export function makeTileTexture(opts: TileOptions = {}): THREE.CanvasTexture {
+  const rng = resolveRng(opts);
+  const S = opts.size ?? 512;
+  const [canvas, ctx] = makeCanvas(S, S);
+
+  ctx.fillStyle = opts.grout ?? '#8f8b80';
+  ctx.fillRect(0, 0, S, S);
+
+  // grimy grout
+  for (let i = 0; i < 700; i++) {
+    ctx.fillStyle = 'rgba(30,30,28,0.22)';
+    ctx.fillRect(rng() * S, rng() * S, 1 + rng() * 2, 1 + rng() * 2);
+  }
+
+  const pitch = 64; // divides 512
+  const gap = 3;
+  const n = S / pitch;
+  // small per-tile palette around a sickly retro green-cream
+  const baseH = 78 + rng() * 30; // hue jitter per texture
+
+  for (let ty = 0; ty < n; ty++) {
+    for (let tx = 0; tx < n; tx++) {
+      const x = tx * pitch;
+      const y = ty * pitch;
+      const missing = rng() < 0.02;
+      if (missing) {
+        // bare substrate behind a fallen tile
+        ctx.fillStyle = `rgba(${40 + rng() * 14},${38 + rng() * 12},${34 + rng() * 10},1)`;
+        ctx.fillRect(x + gap / 2, y + gap / 2, pitch - gap, pitch - gap);
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        ctx.fillRect(x + gap / 2, y + gap / 2, pitch - gap, 3);
+        continue;
+      }
+      const h = baseH + (rng() - 0.5) * 14;
+      const l = 52 + (rng() - 0.5) * 16;
+      ctx.fillStyle = `hsl(${h},${18 + rng() * 14}%,${l}%)`;
+      ctx.fillRect(x + gap / 2, y + gap / 2, pitch - gap, pitch - gap);
+
+      // glazed bevel: bright top-left, shaded bottom-right
+      ctx.fillStyle = 'rgba(255,255,255,0.16)';
+      ctx.fillRect(x + gap / 2, y + gap / 2, pitch - gap, 2);
+      ctx.fillRect(x + gap / 2, y + gap / 2, 2, pitch - gap);
+      ctx.fillStyle = 'rgba(0,0,0,0.18)';
+      ctx.fillRect(x + gap / 2, y + pitch - gap / 2 - 2, pitch - gap, 2);
+      ctx.fillRect(x + pitch - gap / 2 - 2, y + gap / 2, 2, pitch - gap);
+
+      // glossy sheen — diagonal soft highlight on some tiles
+      if (rng() < 0.35) {
+        const g = ctx.createLinearGradient(x, y, x + pitch, y + pitch);
+        g.addColorStop(0, 'rgba(255,255,255,0)');
+        g.addColorStop(0.5, `rgba(255,255,255,${0.08 + rng() * 0.14})`);
+        g.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(x + gap / 2, y + gap / 2, pitch - gap, pitch - gap);
+      }
+
+      // hairline cracks
+      if (rng() < 0.08) {
+        ctx.strokeStyle = 'rgba(20,20,18,0.55)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        let cx = x + gap + rng() * (pitch - gap * 2);
+        let cy = y + gap / 2;
+        ctx.moveTo(cx, cy);
+        const segs = 2 + Math.floor(rng() * 3);
+        for (let s = 0; s < segs; s++) {
+          cx += (rng() - 0.5) * 18;
+          cy += (pitch - gap) / segs;
+          ctx.lineTo(cx, cy);
+        }
+        ctx.stroke();
+      }
+    }
+  }
+
+  // broad glossy sheen patches across several tiles (wet glaze)
+  for (let i = 0; i < 5; i++) {
+    const x = rng() * S;
+    const y = rng() * S;
+    const r = 30 + rng() * 70;
+    const g = ctx.createRadialGradient(x, y, r * 0.1, x, y, r);
+    g.addColorStop(0, `rgba(255,255,255,${0.05 + rng() * 0.09})`);
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // nicotine/water grime running down + bottom dirt buildup
+  for (let i = 0; i < 8; i++) {
+    const x = rng() * S;
+    const w = 4 + rng() * 12;
+    const len = S * (0.3 + rng() * 0.6);
+    const g = ctx.createLinearGradient(0, 0, 0, len);
+    g.addColorStop(0, 'rgba(40,34,22,0.28)');
+    g.addColorStop(1, 'rgba(40,34,22,0)');
+    ctx.save();
+    ctx.translate(x, 0);
+    ctx.fillStyle = g;
+    ctx.fillRect(-w / 2, 0, w, len);
+    ctx.restore();
+  }
+  const dirt = ctx.createLinearGradient(0, S * 0.7, 0, S);
+  dirt.addColorStop(0, 'rgba(20,18,12,0)');
+  dirt.addColorStop(1, 'rgba(20,18,12,0.5)');
+  ctx.fillStyle = dirt;
+  ctx.fillRect(0, S * 0.7, S, S * 0.3);
+
+  return toTexture(canvas, {
+    wrapS: THREE.RepeatWrapping,
+    wrapT: THREE.RepeatWrapping,
+    repeat: opts.repeat,
+    anisotropy: 8,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// 7d. Painted metal panels (tileable)
+// ---------------------------------------------------------------------------
+
+export interface PaintedMetalOptions extends SeedOptions {
+  /** Paint colour. Default faded teal. */
+  paint?: string;
+  /** Canvas size (square). Default 512. */
+  size?: number;
+  repeat?: [number, number];
+}
+
+/**
+ * Painted sheet-metal panels: vertical seams with rivet rows, chipped paint
+ * exposing rust, scratches and oxidised bleed. RepeatWrapping on both axes;
+ * panel pitch divides the canvas so seams wrap.
+ */
+export function makePaintedMetalTexture(opts: PaintedMetalOptions = {}): THREE.CanvasTexture {
+  const rng = resolveRng(opts);
+  const S = opts.size ?? 512;
+  const [canvas, ctx] = makeCanvas(S, S);
+
+  const paint = opts.paint ?? '#3d5a5c';
+  ctx.fillStyle = paint;
+  ctx.fillRect(0, 0, S, S);
+
+  // faded/oxidised paint mottling
+  for (let i = 0; i < 40; i++) {
+    const shade = 60 + Math.floor(rng() * 40);
+    ctx.fillStyle = rng() < 0.5
+      ? `rgba(${shade},${shade + 14},${shade + 14},${0.1 + rng() * 0.18})`
+      : `rgba(${shade + 20},${shade + 12},${shade + 4},${0.08 + rng() * 0.14})`;
+    ctx.fillRect(rng() * S, rng() * S, 40 + rng() * 140, 40 + rng() * 140);
+  }
+
+  // vertical panel seams with rivet rows (pitch divides S for clean wrap)
+  const pitch = 128;
+  for (let x = 0; x <= S; x += pitch) {
+    ctx.fillStyle = 'rgba(8,10,12,0.6)';
+    ctx.fillRect(x - 1, 0, 2, S);
+    ctx.fillStyle = 'rgba(200,210,214,0.14)';
+    ctx.fillRect(x + 1, 0, 1, S);
+    for (let y = 16; y < S; y += 42) {
+      // rivet: dark recess + lit crescent
+      ctx.fillStyle = 'rgba(10,12,14,0.7)';
+      ctx.beginPath();
+      ctx.arc(x + 6, y, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(220,228,230,0.4)';
+      ctx.beginPath();
+      ctx.arc(x + 5.2, y - 0.8, 1.4, 0, Math.PI * 2);
+      ctx.fill();
+      // every rivet weeps a little rust
+      if (rng() < 0.5) {
+        const len = 8 + rng() * 26;
+        const g = ctx.createLinearGradient(0, y, 0, y + len);
+        g.addColorStop(0, 'rgba(120,66,40,0.5)');
+        g.addColorStop(1, 'rgba(120,66,40,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(x + 4.5, y + 2, 3, len);
+      }
+    }
+  }
+
+  // chipped paint — clustered flakes revealing bare metal + rust bloom
+  for (let i = 0; i < 14; i++) {
+    const x = rng() * S;
+    const y = rng() * S;
+    const flakes = 2 + Math.floor(rng() * 5);
+    for (let f = 0; f < flakes; f++) {
+      const fx = x + (rng() - 0.5) * 26;
+      const fy = y + (rng() - 0.5) * 20;
+      const r = 2 + rng() * 6;
+      // rust bloom around the wound
+      ctx.fillStyle = `rgba(${110 + rng() * 40},${58 + rng() * 22},${30 + rng() * 14},${0.4 + rng() * 0.3})`;
+      ctx.beginPath();
+      ctx.arc(fx, fy, r * 1.7, 0, Math.PI * 2);
+      ctx.fill();
+      // exposed metal core
+      ctx.fillStyle = `rgba(${132 + rng() * 30},${128 + rng() * 26},${120 + rng() * 22},0.9)`;
+      ctx.beginPath();
+      ctx.arc(fx, fy, r * 0.7, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // scratches — thin bright/dark pairs dragged across panels
+  for (let i = 0; i < 12; i++) {
+    const x = rng() * S;
+    const y = rng() * S;
+    const len = 20 + rng() * 90;
+    const ang = (rng() - 0.5) * 0.9 + (rng() < 0.5 ? 0 : Math.PI / 2);
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(ang);
+    ctx.strokeStyle = 'rgba(10,12,14,0.5)';
+    ctx.lineWidth = 1 + rng();
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(len, 0);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(210,218,220,0.28)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, -1);
+    ctx.lineTo(len, -1);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // heavy rust streaks bleeding down from the top edge and seams
+  for (let i = 0; i < 9; i++) {
+    const x = rng() * S;
+    const w = 3 + rng() * 10;
+    const len = S * (0.2 + rng() * 0.6);
+    const g = ctx.createLinearGradient(0, 0, 0, len);
+    g.addColorStop(0, 'rgba(96,50,30,0.55)');
+    g.addColorStop(0.4, 'rgba(122,70,44,0.3)');
+    g.addColorStop(1, 'rgba(122,70,44,0)');
+    ctx.save();
+    ctx.translate(x, 0);
+    ctx.fillStyle = g;
+    ctx.fillRect(-w / 2, 0, w, len);
+    ctx.restore();
+  }
+
+  // bottom dirt/oil buildup
+  const grime = ctx.createLinearGradient(0, S * 0.65, 0, S);
+  grime.addColorStop(0, 'rgba(8,10,10,0)');
+  grime.addColorStop(1, 'rgba(8,10,10,0.55)');
+  ctx.fillStyle = grime;
+  ctx.fillRect(0, S * 0.65, S, S * 0.35);
+
+  return toTexture(canvas, {
+    wrapS: THREE.RepeatWrapping,
+    wrapT: THREE.RepeatWrapping,
+    repeat: opts.repeat,
+    anisotropy: 8,
+  });
 }
 
 // ---------------------------------------------------------------------------

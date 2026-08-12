@@ -136,7 +136,9 @@ function signLight(
     poolZ?: number;
   },
 ): THREE.PointLight {
-  const light = new THREE.PointLight(opts.color, opts.intensity, opts.distance, 2);
+  // Global dimmer: keeps neon pools moody (pool-of-light look) instead of
+  // washing the whole alley in saturated color.
+  const light = new THREE.PointLight(opts.color, opts.intensity * 0.62, opts.distance, 2);
   light.position.set(opts.x, opts.y, opts.z);
   group.add(light);
   pools.push({
@@ -229,7 +231,7 @@ export function buildSigns(ctx: AlleyContext): SignsPart {
       h: 4.6,
       texture: tex,
       emissive: 0xff2d95,
-      emissiveIntensity: 3.6,
+      emissiveIntensity: 2.4,
       standoff: 0.95,
       steel,
     });
@@ -237,12 +239,12 @@ export function buildSigns(ctx: AlleyContext): SignsPart {
     // Strong pink wash: hung between the sign and the opposite wall so it
     // bathes the right-hand wall and the ground below.
     const light = signLight(group, pools, {
-      x: 0.4,
-      y: 6.4,
+      x: 0.2,
+      y: 6.6,
       z: 12,
       color: 0xff2d95,
-      intensity: 308,
-      distance: 13,
+      intensity: 520,
+      distance: 16,
       poolWidth: 2.6,
       poolX: 0.3,
       poolZ: 12,
@@ -270,18 +272,18 @@ export function buildSigns(ctx: AlleyContext): SignsPart {
       h: 2.6,
       texture: tex,
       emissive: 0x51ff7a,
-      emissiveIntensity: 4.5,
+      emissiveIntensity: 2.0,
       standoff: 0.7,
       steel,
     });
     group.add(g);
     signLight(group, pools, {
-      x: 0.6,
-      y: 3.6,
+      x: 0.9,
+      y: 3.4,
       z: 30,
       color: 0x3dff6e,
-      intensity: 132,
-      distance: 8,
+      intensity: 230,
+      distance: 10,
       poolWidth: 1.8,
       poolX: 0.5,
       poolZ: 30,
@@ -299,18 +301,18 @@ export function buildSigns(ctx: AlleyContext): SignsPart {
       h: 0.6,
       texture: tex,
       emissive: 0xeaf2ff,
-      emissiveIntensity: 2.7,
+      emissiveIntensity: 1.8,
       standoff: 0.55,
       steel,
     });
     group.add(g);
     signLight(group, pools, {
-      x: 0.9,
-      y: 2.4,
+      x: 1.05,
+      y: 2.3,
       z: 22,
       color: 0xdfeaff,
-      intensity: 70,
-      distance: 5.5,
+      intensity: 120,
+      distance: 7,
       poolWidth: 1.3,
       poolX: 0.9,
       poolZ: 22,
@@ -322,7 +324,7 @@ export function buildSigns(ctx: AlleyContext): SignsPart {
   // --- 4. Round green 営業中 sign at the noodle stand (z ~= 35) -------------
   {
     const tex = neonSignTexture(rng, { kind: 'eigyochu', variant: 0 });
-    const faceMat = makeEmissiveToon({ color: 0x0a0a12, emissive: 0x53ff8a, emissiveIntensity: 3.2, map: tex });
+    const faceMat = makeEmissiveToon({ color: 0x0a0a12, emissive: 0x53ff8a, emissiveIntensity: 2.1, map: tex });
     faceMat.side = THREE.DoubleSide;
     const disc = new THREE.Mesh(new THREE.CircleGeometry(0.42, 24), faceMat);
     disc.rotation.y = Math.PI / 2;
@@ -336,12 +338,12 @@ export function buildSigns(ctx: AlleyContext): SignsPart {
     arm.position.set(-(WALL - 0.31), 3.52, 35);
     group.add(arm);
     signLight(group, pools, {
-      x: -0.9,
-      y: 2.8,
+      x: -1.05,
+      y: 2.7,
       z: 35,
       color: 0x49f27e,
-      intensity: 92,
-      distance: 6.5,
+      intensity: 160,
+      distance: 8,
       poolWidth: 1.6,
       poolX: -0.9,
       poolZ: 35,
@@ -364,18 +366,18 @@ export function buildSigns(ctx: AlleyContext): SignsPart {
       h,
       texture: tex,
       emissive: spec.tint,
-      emissiveIntensity: 2.8,
+      emissiveIntensity: 1.9,
       depth: 0.14,
       steel,
     });
     group.add(g);
     signLight(group, pools, {
-      x: spec.side * (WALL - 0.7),
+      x: spec.side * (WALL - 0.55),
       y: spec.yBase + h / 2,
       z: spec.z,
       color: spec.tint,
-      intensity: 84,
-      distance: 6,
+      intensity: 150,
+      distance: 8,
       poolWidth: 1.4,
       poolX: spec.side * (WALL - 0.8),
       poolZ: spec.z,
@@ -409,8 +411,8 @@ export function buildSigns(ctx: AlleyContext): SignsPart {
       w: 0.9,
       h: 1.4,
       lightColor: 0xff3524,
-      lightIntensity: 35,
-      distance: 6,
+      lightIntensity: 80,
+      distance: 8,
       poolWidth: 1.5,
       perpendicular: true,
     },
@@ -425,8 +427,8 @@ export function buildSigns(ctx: AlleyContext): SignsPart {
       w: 1.0,
       h: 0.55,
       lightColor: 0xff4fc3,
-      lightIntensity: 22,
-      distance: 4.5,
+      lightIntensity: 55,
+      distance: 6,
       poolWidth: 1.1,
       perpendicular: false,
     },
@@ -441,8 +443,8 @@ export function buildSigns(ctx: AlleyContext): SignsPart {
       w: 0.8,
       h: 1.2,
       lightColor: 0xffc93a,
-      lightIntensity: 26,
-      distance: 5,
+      lightIntensity: 70,
+      distance: 7,
       poolWidth: 1.2,
       perpendicular: true,
     },
@@ -458,8 +460,8 @@ export function buildSigns(ctx: AlleyContext): SignsPart {
       w: 0.85,
       h: 1.3,
       lightColor: 0x2fd8c0,
-      lightIntensity: 28,
-      distance: 5.5,
+      lightIntensity: 75,
+      distance: 7.5,
       poolWidth: 1.3,
       perpendicular: true,
     },
@@ -474,8 +476,8 @@ export function buildSigns(ctx: AlleyContext): SignsPart {
       w: 0.75,
       h: 1.5,
       lightColor: 0xff7a1e,
-      lightIntensity: 30,
-      distance: 6,
+      lightIntensity: 85,
+      distance: 8,
       poolWidth: 1.4,
       perpendicular: true,
     },
@@ -490,8 +492,8 @@ export function buildSigns(ctx: AlleyContext): SignsPart {
       w: 0.9,
       h: 0.6,
       lightColor: 0x3ff06a,
-      lightIntensity: 22,
-      distance: 4.5,
+      lightIntensity: 55,
+      distance: 6,
       poolWidth: 1.1,
       perpendicular: true,
     },
@@ -506,8 +508,8 @@ export function buildSigns(ctx: AlleyContext): SignsPart {
       w: 0.8,
       h: 1.4,
       lightColor: 0xa55aff,
-      lightIntensity: 30,
-      distance: 6,
+      lightIntensity: 80,
+      distance: 8,
       poolWidth: 1.4,
       perpendicular: true,
     },
@@ -522,8 +524,8 @@ export function buildSigns(ctx: AlleyContext): SignsPart {
       w: 0.7,
       h: 1.3,
       lightColor: 0xff3826,
-      lightIntensity: 26,
-      distance: 5,
+      lightIntensity: 70,
+      distance: 7,
       poolWidth: 1.2,
       perpendicular: true,
     },
@@ -542,7 +544,7 @@ export function buildSigns(ctx: AlleyContext): SignsPart {
         h: spec.h,
         texture: first,
         emissive: new THREE.Color(spec.color).getHex(),
-        emissiveIntensity: 4.5,
+        emissiveIntensity: 2.0,
         standoff: 0.6,
         steel,
       });
@@ -557,14 +559,14 @@ export function buildSigns(ctx: AlleyContext): SignsPart {
         h: spec.h,
         texture: first,
         emissive: new THREE.Color(spec.color).getHex(),
-        emissiveIntensity: 4.5,
+        emissiveIntensity: 2.0,
         steel,
       });
       group.add(built.group);
       faceMat = built.faceMat;
     }
     const light = signLight(group, pools, {
-      x: spec.side * (WALL - 0.9),
+      x: spec.side * (WALL - 0.75),
       y: spec.y - 0.2,
       z: spec.z,
       color: spec.lightColor,
@@ -595,7 +597,7 @@ export function buildSigns(ctx: AlleyContext): SignsPart {
   // --- 7. Distant cyan sign across the T-junction ---------------------------
   {
     const tex = neonSignTexture(rng, { kind: 'hotel', variant: 2 });
-    const faceMat = makeEmissiveToon({ color: 0x0a0a12, emissive: 0x38d6ff, emissiveIntensity: 3.3, map: tex });
+    const faceMat = makeEmissiveToon({ color: 0x0a0a12, emissive: 0x38d6ff, emissiveIntensity: 2.2, map: tex });
     const zc = ALLEY.length + ALLEY.crossWidth; // far wall of the cross alley
     const face = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 3.4), faceMat);
     face.rotation.y = Math.PI; // faces back down the alley (-Z)
@@ -609,8 +611,8 @@ export function buildSigns(ctx: AlleyContext): SignsPart {
       y: 4.6,
       z: zc - 0.9,
       color: 0x2fc8ff,
-      intensity: 110,
-      distance: 9,
+      intensity: 190,
+      distance: 12,
       poolWidth: 2.0,
       poolX: 2.4,
       poolZ: zc - 1.2,
@@ -620,7 +622,7 @@ export function buildSigns(ctx: AlleyContext): SignsPart {
   // --- 8. Small extras: marker lamps, EXIT plate, doorbell glows ------------
   {
     // Tiny wall marker lamps (emissive only, no dedicated lights).
-    const lampMat = makeEmissiveToon({ color: 0x0a0a12, emissive: 0xffa64d, emissiveIntensity: 2.5 });
+    const lampMat = makeEmissiveToon({ color: 0x0a0a12, emissive: 0xffa64d, emissiveIntensity: 1.7 });
     const lampGeo = new THREE.BoxGeometry(0.07, 0.16, 0.1);
     const lampSpots: { side: -1 | 1; y: number; z: number }[] = [
       { side: 1, y: 2.1, z: 8 },
@@ -637,7 +639,7 @@ export function buildSigns(ctx: AlleyContext): SignsPart {
     }
 
     // EXIT-ish plate over the cross-alley mouth — flat green plate, own small light.
-    const exitMat = makeEmissiveToon({ color: 0x0a0a12, emissive: 0x3dff88, emissiveIntensity: 2.8 });
+    const exitMat = makeEmissiveToon({ color: 0x0a0a12, emissive: 0x3dff88, emissiveIntensity: 1.9 });
     const exit = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.22), exitMat);
     exit.position.set(-1.2, 2.6, ALLEY.length - 0.4);
     exit.rotation.y = Math.PI; // readable walking toward the T
@@ -650,15 +652,15 @@ export function buildSigns(ctx: AlleyContext): SignsPart {
       y: 2.4,
       z: ALLEY.length - 0.8,
       color: 0x35e87e,
-      intensity: 26,
-      distance: 3.5,
+      intensity: 45,
+      distance: 5,
       poolWidth: 0.8,
       poolX: -1.2,
       poolZ: ALLEY.length - 0.9,
     });
 
     // Doorbell-glow buttons beside doorways — pinprick warm LEDs.
-    const bellMat = makeEmissiveToon({ color: 0x0a0a12, emissive: 0xffd9a0, emissiveIntensity: 3.3 });
+    const bellMat = makeEmissiveToon({ color: 0x0a0a12, emissive: 0xffd9a0, emissiveIntensity: 2.2 });
     const bellGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.02, 10);
     const bellSpots: { side: -1 | 1; z: number }[] = [
       { side: 1, z: 21.4 },
