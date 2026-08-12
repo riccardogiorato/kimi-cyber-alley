@@ -413,6 +413,54 @@ export function buildFacades(ctx: AlleyContext): BuiltPart {
       addBalcony(f, 1.2 + rng() * (f.len - 2.4), 3.4 + rng() * 2.2);
     }
 
+    // ---- Upper-wall density (7m+): the references run pipes/ducts/conduit
+    // all the way up the facade, so the walls never read as bare concrete.
+
+    // Tall vertical riser pipes reaching high up the wall.
+    if (f.len > 4 && rng() < 0.55) {
+      const n = 1 + Math.floor(rng() * 2);
+      for (let i = 0; i < n; i++) {
+        const u = 0.7 + rng() * Math.max(0.1, f.len - 1.4);
+        const y0 = 6 + rng() * 3;
+        const len = 6 + rng() * 8; // reaches ~12-17m
+        const r = 0.04 + rng() * 0.05;
+        const p = onFace(f, u, y0 + len / 2, 0.09 + r);
+        pipeKit.add(composeMat(p.x, p.y, p.z, 0, yaw, 0, r, len, r), pick(PIPE_COLORS));
+        // elbow + short horizontal stub at the top
+        if (rng() < 0.6) {
+          const pe = onFace(f, u + 0.5, y0 + len, 0.09 + r);
+          pipeKit.add(composeMat(pe.x, pe.y, pe.z, Math.PI / 2, yaw + Math.PI / 2, 0, r, 1.0, r), pick(PIPE_COLORS));
+        }
+      }
+    }
+
+    // High horizontal duct / cable tray run.
+    if (f.len > 5 && rng() < 0.5) {
+      const y = 7.5 + rng() * 6;
+      const len = Math.min(f.len - 0.8, 3 + rng() * (f.len - 3));
+      const u = 0.4 + rng() * Math.max(0.1, f.len - len - 0.4);
+      const p = onFace(f, u + len / 2, y, 0.16);
+      // rectangular duct (box) rather than a pipe — reads as HVAC trunking
+      boxKit.add(composeMat(p.x, p.y, p.z, 0, yaw, 0, len, 0.28, 0.3), pick(AC_COLORS));
+      // support straps dropping to the wall
+      const nStraps = Math.max(2, Math.floor(len / 1.6));
+      for (let s = 0; s < nStraps; s++) {
+        const su = u + (len / (nStraps - 1)) * s;
+        const ps = onFace(f, su, y - 0.2, 0.05);
+        boxKit.add(composeMat(ps.x, ps.y, ps.z, 0, yaw, 0, 0.04, 0.18, 0.04), KIT_DARK);
+      }
+    }
+
+    // High AC / vent cluster near the roofline.
+    if (f.len > 4 && rng() < 0.4) {
+      const u = 1 + rng() * (f.len - 2);
+      const y = 8 + rng() * 6;
+      const p = onFace(f, u, y, 0.16);
+      boxKit.add(composeMat(p.x, p.y, p.z, 0, yaw, 0, 0.7, 0.5, 0.28), pick(AC_COLORS));
+      const pf = onFace(f, u, y, 0.3);
+      acFanKit.add(composeMat(pf.x, pf.y, pf.z, 0, yaw, 0, 0.85, 0.85, 0.85), KIT_DARK);
+    }
+
     scatterPaper(f);
   }
 
