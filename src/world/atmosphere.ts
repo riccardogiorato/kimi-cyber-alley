@@ -154,6 +154,33 @@ export function buildAtmosphere(ctx: AlleyContext, opts: AtmosphereOptions = {})
     drift: 0.9,
   });
 
+  // Drifting smog banks down the alley spine: alternate warm amber (near
+  // lantern rows / stand) and cool teal (open stretches) so the fog itself
+  // carries the warm/cool split. Very low alpha, very large, slow — reads
+  // as volumetric smog catching the lights, not smoke.
+  const smogBanks: { z: number; warm: boolean }[] = [
+    { z: 14, warm: false },
+    { z: 26, warm: true },
+    { z: 38, warm: true },
+    { z: 50, warm: false },
+    { z: 62, warm: true },
+  ];
+  for (const b of smogBanks) {
+    emitters.push({
+      x: (rng() - 0.5) * 1.2,
+      y: 1.6 + rng() * 1.6,
+      z: b.z + (rng() - 0.5) * 3,
+      tint: b.warm ? new THREE.Color(0xff9a58) : new THREE.Color(0x5ec8d8),
+      puffCount: 6,
+      baseScale: 2.6 + rng() * 1.4,
+      grow: 1.5,
+      rise: 0.5,
+      life: 18 + rng() * 8,
+      maxAlpha: 0.05 + rng() * 0.03,
+      drift: 1.4,
+    });
+  }
+
   let puffCount = 0;
   for (const e of emitters) puffCount += e.puffCount;
 

@@ -126,6 +126,12 @@ const INK_GRADE_SHADER = {
 			graded = mix( graded, graded * 0.4 + uShadowTint * 0.6, shadowMix * 0.35 );
 			graded = mix( graded, graded * uHighlightTint, highlightMix * 0.5 );
 
+			// Teal/amber color-balance: cool the shadows, warm the lit mids.
+			// This is the signature cyberpunk split — teal darks, amber lights.
+			float midMix = smoothstep( 0.12, 0.5, luma ) * ( 1.0 - highlightMix );
+			graded = mix( graded, graded * vec3( 0.82, 1.06, 1.12 ), shadowMix * 0.5 );
+			graded = mix( graded, graded * vec3( 1.14, 1.0, 0.82 ), midMix * 0.42 );
+
 			// Lifted blacks: raise the floor, gently compress the top so
 			// nothing clips.
 			graded = graded * ( 1.0 - uLift ) + uLift;
