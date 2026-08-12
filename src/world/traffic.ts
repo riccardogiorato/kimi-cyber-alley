@@ -99,14 +99,17 @@ export function buildTraffic(ctx: AlleyContext): BuiltPart {
   const COUNT = 4; // sparse by design
   for (let i = 0; i < COUNT; i++) {
     const { root, navL, navR } = buildCraft(rng);
-    // Flight path: a straight line crossing high above the alley, at a
-    // diagonal so it isn't parallel to the street. Altitude 18-30 m.
-    const alt = 14 + rng() * 10;
-    const z0 = -10 + rng() * (ALLEY.length + 20);
-    const z1 = z0 + (rng() - 0.5) * 40;
+    // Flight path: fly ALONG the alley's open sky corridor (down the z-axis),
+    // centred over the street so craft are actually visible while walking.
+    // Slight x-wander and altitude variation per craft keeps them from
+    // looking railed. Altitude low enough to read over the rooftops.
+    const alt = 13 + rng() * 8;
+    const xBase = (rng() - 0.5) * 6; // stay roughly over the street
     const dir = rng() < 0.5 ? 1 : -1;
-    const a = new THREE.Vector3(-38 * dir, alt, z0);
-    const b = new THREE.Vector3(38 * dir, alt + (rng() - 0.5) * 4, z1);
+    const zStart = dir > 0 ? -20 : ALLEY.length + 20;
+    const zEnd = dir > 0 ? ALLEY.length + 20 : -20;
+    const a = new THREE.Vector3(xBase + (rng() - 0.5) * 4, alt, zStart);
+    const b = new THREE.Vector3(xBase + (rng() - 0.5) * 4, alt + (rng() - 0.5) * 3, zEnd);
     const size = 1.0 + rng() * 1.0;
     root.scale.setScalar(size);
     group.add(root);
