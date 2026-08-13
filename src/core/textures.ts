@@ -1226,16 +1226,17 @@ export function makeAsphaltTileTexture(opts: AsphaltTileOptions = {}): THREE.Can
     for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) fn(x + ox, y + oy);
   };
 
-  // large tonal patches (old repairs) — wrapped so seams don't show
+  // small tonal patches (old repairs) — wrapped so seams don't show. Kept
+  // small + subtle so the tiling period isn't visible as a grid.
   const patch = wrap((x, y) => {
     const warm = rng() < 0.3;
-    const shade = 18 + Math.floor(rng() * 22);
+    const shade = 18 + Math.floor(rng() * 18);
     ctx.fillStyle = warm
-      ? `rgba(${shade + 14},${shade + 6},${shade - 2},${0.2 + rng() * 0.25})`
-      : `rgba(${shade},${shade + 3},${shade + 12},${0.24 + rng() * 0.3})`;
-    ctx.fillRect(x, y, 50 + rng() * 150, 50 + rng() * 150);
+      ? `rgba(${shade + 12},${shade + 5},${shade - 2},${0.14 + rng() * 0.16})`
+      : `rgba(${shade},${shade + 3},${shade + 10},${0.16 + rng() * 0.18})`;
+    ctx.fillRect(x, y, 24 + rng() * 70, 24 + rng() * 70);
   });
-  for (let i = 0; i < 26; i++) patch(rng() * S, rng() * S);
+  for (let i = 0; i < 34; i++) patch(rng() * S, rng() * S);
 
   // aggregate speckle — the main detail that kills the "flat stretch" look
   for (let i = 0; i < 7000; i++) {

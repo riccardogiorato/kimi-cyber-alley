@@ -197,6 +197,7 @@ export function buildGround(ctx: AlleyContext, opts: GroundOptions): BuiltPart {
   const crossW = ALLEY.crossHalfWidth * 2 + 2;
   const crossL = ALLEY.crossWidth + 0.4;
   const crossTex = makeAsphaltTileTexture({ rng: ctx.rng });
+  crossTex.anisotropy = 16;
   crossTex.repeat.set(crossW / TILE_WORLD, crossL / TILE_WORLD);
   const crossMat = makeToon({ color: 0xffffff, map: crossTex, gradientSteps: 3 });
   const crossGeo = new THREE.PlaneGeometry(crossW, crossL);
