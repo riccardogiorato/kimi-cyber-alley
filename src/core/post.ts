@@ -19,8 +19,12 @@ import { CopyShader } from 'three/examples/jsm/shaders/CopyShader.js';
  */
 
 export interface InkPipelineOptions {
-  /** Supersample factor for the offscreen target, clamped to [1.5, 2]. */
+  /** Supersample factor for the offscreen target, clamped to [1.0, 2]. */
   supersample?: number;
+  /** 'full' = ink+grade into an intermediate RT, then FXAA resolve to screen.
+   *  'fast' = single ink+grade pass straight to screen, bloom at quarter res
+   *  (for mobile GPUs that can't afford 4 fullscreen passes). */
+  quality?: 'full' | 'fast';
 }
 
 /**
@@ -48,7 +52,7 @@ const INK_GRADE_SHADER = {
     uInkDistance: { value: 45.0 }, // ink fully faded by this view depth
     uShadowTint: { value: new THREE.Color(0x1c2f4a) }, // teal/violet darks
     uHighlightTint: { value: new THREE.Color(0xffe8f2) }, // warm pink-white highs
-    uLift: { value: 0.09 }, // black lift
+    uLift: { value: 0.12 }, // black lift
   },
   vertexShader: /* glsl */ `
 		varying vec2 vUv;
@@ -151,7 +155,7 @@ const INK_GRADE_SHADER = {
 
 			// Global exposure pull-down: crush toward the reference's dark,
 			// pool-of-light mood (neon stays hot because it starts HDR-bright).
-			graded *= 0.7;
+			graded *= 0.78;
 
 			// Vignette: darken the frame corners so the eye falls into the alley.
 			vec2 vuv = vUv - 0.5;
@@ -208,6 +212,8 @@ export class InkPipeline {
   private readonly scene: THREE.Scene;
   private readonly camera: THREE.PerspectiveCamera;
   private readonly supersample: number;
+  private readonly quality: 'full' | 'fast';
+  private gradeRT: THREE.WebGLRenderTarget | null = null;
 
   private sceneRT: THREE.WebGLRenderTarget;
   private depthTexture: THREE.DepthTexture;
@@ -229,7 +235,8 @@ export class InkPipeline {
     this.renderer = renderer;
     this.scene = scene;
     this.camera = camera;
-    this.supersample = THREE.MathUtils.clamp(opts.supersample ?? 1.75, 1.5, 2);
+    this.supersample = THREE.MathUtils.clamp(opts.supersample ?? 1.75, 1.0, 2);
+    this.quality = opts.quality ?? 'full';
 
     this.depthTexture = new THREE.DepthTexture(1, 1);
     this.sceneRT = new THREE.WebGLRenderTarget(1, 1, {
@@ -250,6 +257,11 @@ export class InkPipeline {
 
     this.inkPass = new FullscreenPass(INK_GRADE_SHADER);
     this.fxaaPass = new FullscreenPass(FXAAShader);
+    if (this.quality === 'full') {
+      // Intermediate target: ink+grade lands here, FXAA reads it (previously
+      // FXAA read the RAW scene buffer, silently erasing the grade).
+      this.gradeRT = new THREE.WebGLRenderTarget(1, 1);
+    }
 
     const size = new THREE.Vector2();
     renderer.getSize(size);
@@ -270,7 +282,10 @@ export class InkPipeline {
     const sh = Math.max(1, Math.floor(rh * this.supersample));
     this.sceneRT.setSize(sw, sh);
     this.bloomComposer.setSize(sw, sh);
-    this.bloomPass.setSize(sw / 2, sh / 2);
+    // Bloom is the most expensive stage; fast mode quarters its internal res.
+    const bloomScale = this.quality === 'fast' ? 4 : 2;
+    this.bloomPass.setSize(sw / bloomScale, sh / bloomScale);
+    this.gradeRT?.setSize(rw, rh);
 
     const inkU = this.inkPass.material.uniforms;
     inkU.uResolution?.value.set(sw, sh);
@@ -290,17 +305,22 @@ export class InkPipeline {
     // 2. Bloom from the HDR scene buffer (stays linear HDR in composer RT).
     this.bloomComposer.render();
 
-    // 3. Ink (from depth) + composite scene+bloom + grade, to the canvas.
+    // 3. Ink (from depth) + composite scene+bloom + grade.
     const inkU = this.inkPass.material.uniforms;
     if (inkU.tDiffuse) inkU.tDiffuse.value = this.sceneRT.texture;
     if (inkU.tBloom) inkU.tBloom.value = this.bloomComposer.readBuffer.texture;
     if (inkU.tDepth) inkU.tDepth.value = this.depthTexture;
-    this.inkPass.render(this.renderer, null);
-
-    // 4. FXAA resolve to screen.
-    const fxaaU = this.fxaaPass.material.uniforms;
-    if (fxaaU.tDiffuse) fxaaU.tDiffuse.value = this.sceneRT.texture;
-    this.fxaaPass.render(this.renderer, null);
+    if (this.quality === 'full' && this.gradeRT) {
+      // Grade into the intermediate RT, then FXAA resolves THAT to screen
+      // (fix: FXAA used to re-blit the raw scene, erasing the grade).
+      this.inkPass.render(this.renderer, this.gradeRT);
+      const fxaaU = this.fxaaPass.material.uniforms;
+      if (fxaaU.tDiffuse) fxaaU.tDiffuse.value = this.gradeRT.texture;
+      this.fxaaPass.render(this.renderer, null);
+    } else {
+      // Fast path: single graded pass straight to the canvas, no FXAA.
+      this.inkPass.render(this.renderer, null);
+    }
   }
 
   dispose(): void {
@@ -309,5 +329,6 @@ export class InkPipeline {
     this.bloomComposer.dispose();
     this.inkPass.dispose();
     this.fxaaPass.dispose();
+    this.gradeRT?.dispose();
   }
 }

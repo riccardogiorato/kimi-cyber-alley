@@ -87,24 +87,39 @@ const collect = (part: BuiltPart) => {
 };
 
 // Signs first: their light pools decide where the ground paints reflections.
+const __t0 = performance.now();
+const __times: [string, number][] = [];
+(window as unknown as Record<string, unknown>).__buildTimes = __times;
+const __mark = (label: string) => {
+  __times.push([label, Math.round(performance.now() - __t0)]);
+};
 const signs = buildSigns(ctx(0x51a6));
 collect(signs);
+__mark('signs');
 
 collect(buildGround(ctx(0x6a0d), { lightPools: signs.lightPools }));
+__mark('ground');
 collect(buildFacades(ctx(0xfaca)));
+__mark('facades');
 const overhead = buildOverhead(ctx(0x0e4d));
 collect(overhead);
+__mark('overhead');
 const stand = buildNoodleStand(ctx(0x00d1e));
 collect(stand);
+__mark('noodleStand');
 collect(buildProps(ctx(0x9a09)));
+__mark('props');
 collect(buildNpcs(ctx(0x9c05)));
+__mark('npcs');
 collect(buildTraffic(ctx(0x7caf)));
+__mark('traffic');
 collect(
   buildAtmosphere(ctx(0xa710), {
     steamEmitters: stand.steamEmitters,
     rainGaps: overhead.rainGaps,
   }),
 );
+__mark('atmosphere');
 
 // Base ambient: deep teal, so unlit shadow never reads as black.
 scene.add(new THREE.AmbientLight(0x33455a, 100.0));
@@ -126,6 +141,7 @@ player.teleport(0, 2.5, Math.PI); // face down the alley (+Z)
 (window as unknown as Record<string, unknown>).__camera = camera;
 (window as unknown as Record<string, unknown>).__player = player;
 (window as unknown as Record<string, unknown>).__scene = scene;
+(window as unknown as Record<string, unknown>).__renderer = renderer;
 
 const overlay = document.getElementById('overlay')!;
 const fpsEl = document.getElementById('fps')!;
@@ -147,6 +163,7 @@ if (player.isTouch) {
 // Lower supersample on touch devices — mobile GPUs can't afford 1.75x.
 const pipeline = new InkPipeline(renderer, scene, camera, {
   supersample: player.isTouch ? 1.0 : 1.75,
+  quality: player.isTouch ? 'fast' : 'full',
 });
 
 function onResize() {
