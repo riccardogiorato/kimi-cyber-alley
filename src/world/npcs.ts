@@ -48,7 +48,7 @@ const HAIR_COLORS = [0x14100c, 0x2a1e14, 0x3a2e22, 0x0e1418];
 const UMBRELLA_COLORS = [0x8a2a3a, 0x2a4a8a, 0x3a6a4a, 0x6a3a7a, 0xb06a2a];
 const BAG_COLORS = [0x4a3421, 0x2a2a30, 0x5c4a2e, 0x3a2e3e];
 
-function buildFigure(rng: () => number): Omit<NpcAgent, 'z' | 'dir' | 'lane' | 'speed' | 'phase' | 'pauseTimer' | 'paused'> {
+export function buildFigure(rng: () => number): Omit<NpcAgent, 'z' | 'dir' | 'lane' | 'speed' | 'phase' | 'pauseTimer' | 'paused'> {
   const root = new THREE.Group();
   root.name = 'npc';
 

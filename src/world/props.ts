@@ -158,7 +158,7 @@ function vendingLabelTexture(variant: number): THREE.CanvasTexture {
  * Vending machines
  * ------------------------------------------------------------------------- */
 
-interface VendingSpec {
+export interface VendingSpec {
   x: number;
   z: number;
   variant: number; // 0 red, 1 white/blue, 2 dark/orange
@@ -168,7 +168,7 @@ interface VendingSpec {
   hero: boolean;
 }
 
-function buildVendingMachine(
+export function buildVendingMachine(
   ctx: AlleyContext,
   spec: VendingSpec,
   canGeo: THREE.CylinderGeometry,
@@ -325,7 +325,7 @@ interface CatRig {
   twitchSeed: number;
 }
 
-function buildCat(rng: () => number): CatRig {
+export function buildCat(rng: () => number): CatRig {
   const g = new THREE.Group();
   g.name = 'stray-cat';
 
@@ -394,7 +394,7 @@ function buildCat(rng: () => number): CatRig {
  * Hover-bike (hero prop)
  * ------------------------------------------------------------------------- */
 
-function buildHoverBike(): { group: THREE.Group; hull: THREE.Mesh } {
+export function buildHoverBike(): { group: THREE.Group; hull: THREE.Mesh } {
   const g = new THREE.Group();
   g.name = 'hover-bike';
 
@@ -471,7 +471,7 @@ function buildHoverBike(): { group: THREE.Group; hull: THREE.Mesh } {
  * Plastic chair (monobloc-ish)
  * ------------------------------------------------------------------------- */
 
-function buildPlasticChair(color: number): THREE.Group {
+export function buildPlasticChair(color: number): THREE.Group {
   const g = new THREE.Group();
   g.name = 'plastic-chair';
   const mat = makeToon({ color });

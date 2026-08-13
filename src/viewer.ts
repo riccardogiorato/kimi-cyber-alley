@@ -1,10 +1,10 @@
 /**
  * Asset viewer.
- *   /viewer            -> index of all assets (links)
+ *   /viewer            -> dense square grid of ALL assets (thumbnails, clickable)
  *   /viewer?model=xyz  -> renders exactly ONE asset, large, for visual review
  */
 import * as THREE from 'three';
-import { mulberry32 } from './core/types';
+import { mulberry32, type AlleyContext } from './core/types';
 import {
   makeHotelSignTexture,
   makeKaraokeSignTexture,
@@ -14,17 +14,29 @@ import {
   makeFlickerSignFrames,
   makePosterTexture,
   makeStickerTexture,
+  makeStickerSheetTexture,
   makeGraffitiTexture,
+  makeMenuStripTexture,
   makeMenuStripTextures,
   makeGroundTexture,
+  makeAsphaltTileTexture,
+  makeSmearOverlayTexture,
   makeWallGrimeTexture,
+  makeBrickTexture,
+  makeTileTexture,
+  makePaintedMetalTexture,
   makeTarpTexture,
+  makeSkyTexture,
   type PosterVariant,
   type StickerVariant,
   type GraffitiVariant,
   type KanjiTowerVariant,
 } from './core/textures';
 import { makeToon, makeEmissiveToon } from './core/toon';
+import { buildVendingMachine, buildCat, buildHoverBike, buildPlasticChair } from './world/props';
+import { buildFigure } from './world/npcs';
+import { buildCraft } from './world/traffic';
+import { buildNoodleStand } from './world/noodleStand';
 
 type Asset =
   | { kind: 'texture'; make: () => THREE.CanvasTexture }
@@ -37,6 +49,58 @@ const SAMPLE_SMEARS = [
   { x: 0.8, z: 64, color: '#ff3b30', width: 1.4 },
 ];
 
+/** Fake context for builders that expect the world's AlleyContext. */
+function fakeCtx(seed: number): AlleyContext {
+  return { rng: mulberry32(seed), colliders: [] };
+}
+
+/* --- prop wrappers around the real world builders ------------------------ */
+
+function vending(variant: 0 | 1 | 2): () => THREE.Object3D {
+  const specs = {
+    0: { x: 0, z: 0, variant: 0, bodyColor: 0xb81e28, headerColor: 0xff2a35, glowColor: 0xffd9d9, hero: true },
+    1: { x: 0, z: 0, variant: 1, bodyColor: 0x9aa4ac, headerColor: 0x2f6fd0, glowColor: 0xd9ecff, hero: false },
+    2: { x: 0, z: 0, variant: 2, bodyColor: 0x1a1e24, headerColor: 0xff8c1a, glowColor: 0xffc98a, hero: false },
+  } as const;
+  return () => {
+    const canGeo = new THREE.CylinderGeometry(0.033, 0.033, 0.115, 10);
+    const canMat = makeToon({ color: 0xffffff });
+    const canPalette = [0xd23b2e, 0x2e7fd2, 0xf2f2f2, 0x3fae5a, 0xf0a12e, 0x8a4fd0];
+    const g = buildVendingMachine(fakeCtx(100 + variant), specs[variant] as never, canGeo, canMat, canPalette as never).group;
+    g.position.set(0, 0, 0);
+    g.rotation.y = 0; // front is +Z locally
+    return g;
+  };
+}
+
+function npcFigure(seed: number): () => THREE.Object3D {
+  return () => buildFigure(mulberry32(seed)).root;
+}
+
+function flyingCraft(seed: number): () => THREE.Object3D {
+  return () => buildCraft(mulberry32(seed)).root;
+}
+
+function noodleStand(): THREE.Object3D {
+  const g = buildNoodleStand(fakeCtx(7)).group;
+  // The stall root child carries the world placement; move the whole group so
+  // the stall sits at the origin facing -X (its natural front).
+  g.position.set(-(3.0 - 0.12), 0, -36);
+  return g;
+}
+
+function strayCat(): THREE.Object3D {
+  return buildCat(mulberry32(21)).group;
+}
+
+function hoverBikeReal(): THREE.Object3D {
+  return buildHoverBike().group;
+}
+
+function chair(color: number): () => THREE.Object3D {
+  return () => buildPlasticChair(color);
+}
+
 function lantern(): THREE.Object3D {
   const pts: THREE.Vector2[] = [];
   for (let i = 0; i <= 12; i++) {
@@ -47,70 +111,6 @@ function lantern(): THREE.Object3D {
     new THREE.LatheGeometry(pts, 20),
     makeEmissiveToon({ color: 0x0a0a12, emissive: 0xff7a33, emissiveIntensity: 1.6 }),
   );
-}
-
-function trashBag(): THREE.Object3D {
-  const rng = mulberry32(42);
-  const geo = new THREE.IcosahedronGeometry(0.4, 1);
-  const pos = geo.attributes.position!;
-  for (let i = 0; i < pos.count; i++) {
-    const s = 1 + (rng() - 0.5) * 0.35;
-    pos.setXYZ(i, pos.getX(i) * s, pos.getY(i) * s * 0.85, pos.getZ(i) * s);
-  }
-  geo.computeVertexNormals();
-  return new THREE.Mesh(geo, makeToon({ color: 0x1c2a24, gradientSteps: 3 }));
-}
-
-function cat(): THREE.Object3D {
-  const g = new THREE.Group();
-  const mat = makeToon({ color: 0x14181c, gradientSteps: 2 });
-  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.16, 0.3, 4, 10), mat);
-  body.rotation.z = Math.PI / 2;
-  body.position.y = 0.2;
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 10), mat);
-  head.position.set(0.28, 0.34, 0);
-  const earGeo = new THREE.ConeGeometry(0.045, 0.1, 6);
-  const e1 = new THREE.Mesh(earGeo, mat); e1.position.set(0.24, 0.46, 0.06);
-  const e2 = new THREE.Mesh(earGeo, mat); e2.position.set(0.24, 0.46, -0.06);
-  const tail = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.03, 6, 12, Math.PI * 1.2), mat);
-  tail.position.set(-0.3, 0.3, 0);
-  g.add(body, head, e1, e2, tail);
-  return g;
-}
-
-function hoverBike(): THREE.Object3D {
-  const g = new THREE.Group();
-  const hullMat = makeToon({ color: 0x2a343c, gradientSteps: 3 });
-  const hull = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.22, 0.5), hullMat);
-  hull.position.y = 0.5;
-  const nose = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.2, 0.5, 8), hullMat);
-  nose.rotation.z = Math.PI / 2.3;
-  nose.position.set(0.85, 0.56, 0);
-  const ringGeo = new THREE.TorusGeometry(0.22, 0.07, 8, 20);
-  const r1 = new THREE.Mesh(ringGeo, hullMat); r1.position.set(-0.55, 0.42, 0); r1.rotation.x = Math.PI / 2;
-  const r2 = new THREE.Mesh(ringGeo, hullMat); r2.position.set(0.55, 0.42, 0); r2.rotation.x = Math.PI / 2;
-  const tail = new THREE.Mesh(
-    new THREE.BoxGeometry(0.06, 0.06, 0.3),
-    makeEmissiveToon({ color: 0x0a0a12, emissive: 0xff2d20, emissiveIntensity: 2.4 }),
-  );
-  tail.position.set(-0.78, 0.52, 0);
-  g.add(hull, nose, r1, r2, tail);
-  return g;
-}
-
-function wallKit(): THREE.Object3D {
-  const g = new THREE.Group();
-  const ac = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.55, 0.3), makeToon({ color: 0x9aa0a2, gradientSteps: 3 }));
-  ac.position.set(-0.5, 0.6, 0);
-  const fan = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.05, 20), makeToon({ color: 0x2c3236, gradientSteps: 2 }));
-  fan.rotation.x = Math.PI / 2;
-  fan.position.set(-0.5, 0.6, 0.18);
-  const vent = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 0.1), makeToon({ color: 0x46525a, gradientSteps: 3 }));
-  vent.position.set(0.5, 0.6, 0);
-  const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.6, 10), makeToon({ color: 0x7a4a38, gradientSteps: 3 }));
-  pipe.position.set(1.0, 0.8, 0);
-  g.add(ac, fan, vent, pipe);
-  return g;
 }
 
 function toonSpheres(): THREE.Object3D {
@@ -139,7 +139,10 @@ function neonTubes(): THREE.Object3D {
   return g;
 }
 
+/* --- the registry --------------------------------------------------------- */
+
 const ASSETS: Record<string, Asset> = {
+  /* sign faces */
   'tex-hotel-v': { kind: 'texture', make: () => makeHotelSignTexture({ seed: 1, orientation: 'vertical' }) },
   'tex-hotel-h': { kind: 'texture', make: () => makeHotelSignTexture({ seed: 2, orientation: 'horizontal' }) },
   'tex-karaoke': { kind: 'texture', make: () => makeKaraokeSignTexture({ seed: 3 }) },
@@ -154,6 +157,8 @@ const ASSETS: Record<string, Asset> = {
   'tex-flicker-0': { kind: 'texture', make: () => makeFlickerSignFrames({ seed: 7, text: '酒場', sub: 'SAKABA', color: '#ff3b30' })[0]! },
   'tex-flicker-1': { kind: 'texture', make: () => makeFlickerSignFrames({ seed: 7, text: '酒場', sub: 'SAKABA', color: '#ff3b30' })[1]! },
   'tex-flicker-2': { kind: 'texture', make: () => makeFlickerSignFrames({ seed: 7, text: '酒場', sub: 'SAKABA', color: '#ff3b30' })[2]! },
+
+  /* wall paper */
   ...Object.fromEntries(
     (['band', 'ad', 'cat', 'notice'] as PosterVariant[]).map((v) => [
       `tex-poster-${v}`,
@@ -166,25 +171,46 @@ const ASSETS: Record<string, Asset> = {
       { kind: 'texture', make: () => makeStickerTexture(v, { seed: 9 }) } as Asset,
     ]),
   ),
+  'tex-sticker-sheet': { kind: 'texture', make: () => makeStickerSheetTexture({ seed: 9 }) },
   ...Object.fromEntries(
     (['tag', 'throwie', 'stencil'] as GraffitiVariant[]).map((v) => [
       `tex-graffiti-${v}`,
       { kind: 'texture', make: () => makeGraffitiTexture(v, { seed: 10 }) } as Asset,
     ]),
   ),
+  'tex-menu-single': { kind: 'texture', make: () => makeMenuStripTexture({ seed: 11 }) },
   'tex-menu-0': { kind: 'texture', make: () => makeMenuStripTextures({ seed: 11 })[0]! },
   'tex-menu-1': { kind: 'texture', make: () => makeMenuStripTextures({ seed: 11 })[1]! },
+
+  /* surfaces */
   'tex-ground': { kind: 'texture', make: () => makeGroundTexture({ seed: 12, smears: SAMPLE_SMEARS }) },
+  'tex-asphalt-tile': { kind: 'texture', make: () => makeAsphaltTileTexture({ seed: 12 }) },
+  'tex-smear-overlay': { kind: 'texture', make: () => makeSmearOverlayTexture(mulberry32(12), { lightPools: SAMPLE_SMEARS.map(s => ({ x: s.x, z: s.z, color: parseInt(s.color.slice(1), 16), width: s.width })) }) },
   'tex-wallgrime': { kind: 'texture', make: () => makeWallGrimeTexture({ seed: 13 }) },
+  'tex-brick': { kind: 'texture', make: () => makeBrickTexture({ seed: 16 }) },
+  'tex-tile': { kind: 'texture', make: () => makeTileTexture({ seed: 17 }) },
+  'tex-painted-metal': { kind: 'texture', make: () => makePaintedMetalTexture({ seed: 18 }) },
   'tex-awning': { kind: 'texture', make: () => makeTarpTexture('stripes', { seed: 14 }) },
   'tex-tarp': { kind: 'texture', make: () => makeTarpTexture('patched', { seed: 15 }) },
+  'tex-sky': { kind: 'texture', make: () => makeSkyTexture() },
+
+  /* props — the REAL scene builders */
+  'prop-noodle-stand': { kind: 'prop', build: noodleStand, cam: [4.6, 2.4, -1.2], look: [-0.4, 1.0, 0.4] },
+  'prop-vending-red': { kind: 'prop', build: vending(0), cam: [1.6, 1.5, 3.0], look: [0, 0.9, 0] },
+  'prop-vending-white': { kind: 'prop', build: vending(1), cam: [1.6, 1.5, 3.0], look: [0, 0.9, 0] },
+  'prop-vending-dark': { kind: 'prop', build: vending(2), cam: [1.6, 1.5, 3.0], look: [0, 0.9, 0] },
+  'prop-npc-1': { kind: 'prop', build: npcFigure(31), cam: [0.9, 1.4, 2.4], look: [0, 0.9, 0] },
+  'prop-npc-2': { kind: 'prop', build: npcFigure(47), cam: [0.9, 1.4, 2.4], look: [0, 0.9, 0] },
+  'prop-npc-3': { kind: 'prop', build: npcFigure(63), cam: [0.9, 1.4, 2.4], look: [0, 0.9, 0] },
+  'prop-flying-car-1': { kind: 'prop', build: flyingCraft(71), cam: [1.6, 0.9, 2.0], look: [0, 0.1, 0] },
+  'prop-flying-car-2': { kind: 'prop', build: flyingCraft(83), cam: [1.6, 0.9, 2.0], look: [0, 0.1, 0] },
+  'prop-cat': { kind: 'prop', build: strayCat, cam: [0.4, 0.5, 1.1], look: [0, 0.2, 0] },
+  'prop-hoverbike': { kind: 'prop', build: hoverBikeReal, cam: [1.4, 0.9, 1.6], look: [0, 0.4, 0] },
+  'prop-chair-blue': { kind: 'prop', build: chair(0x2e5a8c), cam: [0.7, 0.8, 1.4], look: [0, 0.4, 0] },
+  'prop-chair-red': { kind: 'prop', build: chair(0x8c3a3a), cam: [0.7, 0.8, 1.4], look: [0, 0.4, 0] },
+  'prop-lantern': { kind: 'prop', build: lantern, cam: [0, 0.2, 1.6], look: [0, 0, 0] },
   'prop-toon-spheres': { kind: 'prop', build: toonSpheres, cam: [0, 0.6, 3.4], look: [0, 0, 0] },
   'prop-neon-tubes': { kind: 'prop', build: neonTubes, cam: [0, 0.3, 2.6], look: [0, 0, 0] },
-  'prop-lantern': { kind: 'prop', build: lantern, cam: [0, 0.2, 1.6], look: [0, 0, 0] },
-  'prop-trashbag': { kind: 'prop', build: trashBag, cam: [0, 0.3, 1.6], look: [0, 0, 0] },
-  'prop-cat': { kind: 'prop', build: cat, cam: [0.2, 0.5, 1.6], look: [0, 0.25, 0] },
-  'prop-hoverbike': { kind: 'prop', build: hoverBike, cam: [1.6, 1.0, 1.8], look: [0, 0.5, 0] },
-  'prop-wallkit': { kind: 'prop', build: wallKit, cam: [0.4, 1.0, 2.6], look: [0.1, 0.6, 0] },
 };
 
 const params = new URLSearchParams(location.search);
@@ -227,7 +253,7 @@ function renderPropInto(container: HTMLElement, asset: Extract<Asset, { kind: 'p
 }
 
 if (!model || !ASSETS[model]) {
-  // Index page: every asset rendered as a thumbnail, clickable to its single view.
+  // Index page: every asset rendered as a square thumbnail in a dense grid.
   const grid = document.createElement('div');
   grid.id = 'grid';
   for (const key of Object.keys(ASSETS)) {
@@ -238,9 +264,9 @@ if (!model || !ASSETS[model]) {
     const thumb = document.createElement('div');
     thumb.className = 'thumb';
     if (asset.kind === 'texture') {
-      renderTextureInto(thumb, asset.make(), 300, 210);
+      renderTextureInto(thumb, asset.make(), 260, 260);
     } else {
-      renderPropInto(thumb, asset, 300, 210);
+      renderPropInto(thumb, asset, 260, 260);
     }
     cell.appendChild(thumb);
     const label = document.createElement('span');
@@ -249,18 +275,6 @@ if (!model || !ASSETS[model]) {
     grid.appendChild(cell);
   }
   app.appendChild(grid);
-  // keep a plain link list too for text-only consumers
-  const list = document.createElement('ul');
-  list.style.display = 'none';
-  for (const key of Object.keys(ASSETS)) {
-    const li = document.createElement('li');
-    const a = document.createElement('a');
-    a.href = `/viewer?model=${key}`;
-    a.textContent = key;
-    li.appendChild(a);
-    list.appendChild(li);
-  }
-  app.appendChild(list);
 } else {
   const asset = ASSETS[model];
   const title = document.createElement('div');

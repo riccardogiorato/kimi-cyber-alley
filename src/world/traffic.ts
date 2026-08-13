@@ -30,7 +30,7 @@ interface Craft {
 const BODY_TINTS = [0x2a3340, 0x3a2f42, 0x24363a, 0x40343a, 0x2e3a2e];
 const NAV_COLORS = [0xff3b30, 0x51ff7a, 0x38d6ff, 0xffd24d, 0xff2d95];
 
-function buildCraft(rng: () => number): { root: THREE.Group; navL: THREE.Mesh; navR: THREE.Mesh } {
+export function buildCraft(rng: () => number): { root: THREE.Group; navL: THREE.Mesh; navR: THREE.Mesh } {
   const root = new THREE.Group();
   root.name = 'craft';
 
