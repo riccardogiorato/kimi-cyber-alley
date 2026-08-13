@@ -592,7 +592,7 @@ export function makePosterTexture(variant: PosterVariant, opts: PosterOptions = 
 // 3. Stickers
 // ---------------------------------------------------------------------------
 
-export type StickerVariant = 'arrow' | 'barcode' | 'mascot' | 'bolt' | 'logo';
+export type StickerVariant = 'arrow' | 'barcode' | 'mascot' | 'bolt' | 'logo' | 'together';
 
 export interface StickerOptions extends SeedOptions {
   /** Main colour override. */
@@ -696,6 +696,56 @@ export function makeStickerTexture(variant: StickerVariant, opts: StickerOptions
     ctx.fillStyle = '#ffe14d';
     bolt();
     ctx.fill();
+  } else if (variant === 'together') {
+    // Together AI logo: three solid circles in a triangle (purple top-left,
+    // magenta top-right, orange bottom), each with a small white notch where
+    // they overlap, above the "together.ai" wordmark. Redrawn in Canvas2D
+    // from the official mark.
+    const r = 46;
+    const centres: [number, number, string][] = [
+      [92, 84, '#c6a8f4'],  // purple, top-left
+      [164, 84, '#ef2cc1'], // magenta, top-right
+      [128, 146, '#fc4c02'], // orange, bottom
+    ];
+    // die-cut white halo behind the cluster
+    dieCut(() => {
+      for (const [x, y] of centres) {
+        ctx.beginPath();
+        ctx.arc(x, y, r + 4, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    });
+    for (const [x, y, color] of centres) {
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // white notch cutouts where the circles meet (little wedge bars pointing
+    // toward the cluster centre) — the signature gaps in the real mark.
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 9;
+    ctx.lineCap = 'round';
+    const notch = (x: number, y: number, angle: number) => {
+      const x0 = x + Math.cos(angle) * (r * 0.35);
+      const y0 = y + Math.sin(angle) * (r * 0.35);
+      const x1 = x + Math.cos(angle) * (r * 0.95);
+      const y1 = y + Math.sin(angle) * (r * 0.95);
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+      ctx.stroke();
+    };
+    // each circle's notch points toward the middle of the triangle (128, 105)
+    notch(92, 84, Math.atan2(105 - 84, 128 - 92));
+    notch(164, 84, Math.atan2(105 - 84, 128 - 164));
+    notch(128, 146, Math.atan2(105 - 146, 128 - 128));
+    // wordmark
+    ctx.fillStyle = '#f4f0ff';
+    ctx.font = font(34, 'normal', LATIN);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('together.ai', 128, 222);
   } else {
     // logo-ish round mark
     dieCut(() => {
@@ -723,7 +773,7 @@ export function makeStickerSheetTexture(opts: StickerOptions = {}): THREE.Canvas
   const rng = resolveRng(opts);
   const [canvas, ctx] = makeCanvas(512, 512);
   ctx.clearRect(0, 0, 512, 512);
-  const variants: StickerVariant[] = ['arrow', 'barcode', 'mascot', 'bolt'];
+  const variants: StickerVariant[] = ['arrow', 'barcode', 'mascot', 'bolt', 'together'];
   for (let i = 0; i < variants.length; i++) {
     const v = variants[i];
     if (v === undefined) continue;
@@ -2156,7 +2206,7 @@ export function flickerSignFrames(
 }
 
 const POSTER_VARIANTS: PosterVariant[] = ['band', 'ad', 'cat', 'notice'];
-const STICKER_VARIANTS: StickerVariant[] = ['arrow', 'barcode', 'mascot', 'bolt', 'logo'];
+const STICKER_VARIANTS: StickerVariant[] = ['arrow', 'barcode', 'mascot', 'bolt', 'logo', 'together'];
 const GRAFFITI_VARIANTS: GraffitiVariant[] = ['tag', 'throwie', 'stencil'];
 
 function pick<T>(list: T[], v: number): T {

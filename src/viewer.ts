@@ -166,7 +166,7 @@ const ASSETS: Record<string, Asset> = {
     ]),
   ),
   ...Object.fromEntries(
-    (['arrow', 'barcode', 'mascot', 'bolt', 'logo'] as StickerVariant[]).map((v) => [
+    (['arrow', 'barcode', 'mascot', 'bolt', 'logo', 'together'] as StickerVariant[]).map((v) => [
       `tex-sticker-${v}`,
       { kind: 'texture', make: () => makeStickerTexture(v, { seed: 9 }) } as Asset,
     ]),
