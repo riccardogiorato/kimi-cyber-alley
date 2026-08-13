@@ -8,6 +8,11 @@
     <meta name="theme-color" content="#060a0c" />
     <title>kimi-cyber-alley</title>
     <style>
+      @font-face {
+        font-family: "Cybertruck";
+        src: url("https://cdn.jsdelivr.net/gh/websfont/Cybertruck@main/Cybertruck.woff2") format("woff2");
+        font-display: swap;
+      }
       html, body { margin: 0; padding: 0; height: 100%; background: #060a0c; overflow: hidden; }
       /* Fill the visual viewport on iOS (dynamic toolbars) and avoid bounce/scroll. */
       html, body { height: 100dvh; }
@@ -23,6 +28,42 @@
       }
       #overlay.hidden { opacity: 0; pointer-events: none; }
       #overlay .hint { opacity: 0.65; font-size: 12px; }
+      /* Neon app title above the enter prompt (matches the og:image cover). */
+      #overlay .title {
+        display: block; margin-bottom: 26px;
+        font-family: "Cybertruck", ui-monospace, Menlo, monospace;
+        font-size: clamp(34px, 7vw, 72px); line-height: 1.1; letter-spacing: 0.05em;
+        color: #f4f7ff; white-space: nowrap;
+        text-shadow:
+          0 0 10px rgba(120, 220, 255, 0.9),
+          0 0 34px rgba(60, 160, 255, 0.55),
+          0 0 90px rgba(255, 45, 200, 0.45),
+          0 3px 0 rgba(0,0,0,0.55);
+      }
+      #overlay .tag {
+        display: block; margin: -16px 0 22px;
+        font-size: 11px; letter-spacing: 0.4em; color: #8fe8ff;
+        text-shadow: 0 0 12px rgba(80, 220, 255, 0.8);
+      }
+      /* Mobile portrait: allow the title to wrap over two lines. */
+      @media (max-width: 520px) {
+        #overlay .title { white-space: normal; font-size: clamp(30px, 11vw, 46px); }
+        #overlay .tag { letter-spacing: 0.28em; }
+      }
+
+      /* GitHub link badge, top-right. */
+      #gh {
+        position: fixed; top: max(8px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right));
+        z-index: 21; display: flex; align-items: center; gap: 7px;
+        color: #9fe8dd; text-decoration: none;
+        font-family: ui-monospace, Menlo, monospace; font-size: 11px; letter-spacing: 0.06em;
+        padding: 4px 9px; background: rgba(4, 10, 12, 0.5);
+        border: 1px solid rgba(120, 220, 205, 0.22); border-radius: 4px;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+        transition: background 0.15s ease, border-color 0.15s ease;
+      }
+      #gh:hover { background: rgba(10, 24, 26, 0.75); border-color: rgba(120, 220, 205, 0.5); }
+      #gh svg { width: 15px; height: 15px; fill: currentColor; flex: none; }
 
       /* Always-on FPS counter, top-left, legible on any background. */
       #fps {
@@ -57,7 +98,11 @@
   </head>
   <body>
     <div id="fps">-- FPS</div>
-    <div id="overlay"><span>CLICK TO ENTER THE ALLEY<br /><span class="hint">WASD move &middot; SHIFT run &middot; ESC release</span></span></div>
+    <a id="gh" href="https://github.com/riccardogiorato/kimi-cyber-alley" target="_blank" rel="noopener noreferrer" aria-label="GitHub repository">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+      <span>GitHub source code</span>
+    </a>
+    <div id="overlay"><span><span class="title">KIMI CYBER ALLEY</span><span class="tag">A PROCEDURAL NEON BACK-ALLEY</span>CLICK TO ENTER THE ALLEY<br /><span class="hint">WASD move &middot; SHIFT run &middot; ESC release</span></span></div>
     <div id="touch">
       <div id="stick"><div class="nub"></div></div>
       <div id="lookhint">drag right side<br />to look</div>

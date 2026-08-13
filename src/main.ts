@@ -134,7 +134,8 @@ if (player.isTouch) {
   // Touch: no pointer lock. Tap to dismiss the overlay; joystick + look-drag
   // take over. Update the copy so it doesn't mention a keyboard.
   overlay.innerHTML =
-    'TAP TO ENTER THE ALLEY<br /><span class="hint">left thumb move &middot; right thumb look &middot; push far to run</span>';
+    '<span><span class="title">KIMI CYBER ALLEY</span><span class="tag">A PROCEDURAL NEON BACK-ALLEY</span>' +
+    'TAP TO ENTER THE ALLEY<br /><span class="hint">left thumb move &middot; right thumb look &middot; push far to run</span></span>';
   overlay.addEventListener('click', () => overlay.classList.add('hidden'));
   overlay.addEventListener('touchend', () => overlay.classList.add('hidden'), { once: true });
 } else {

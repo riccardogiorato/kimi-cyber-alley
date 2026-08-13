@@ -125,10 +125,11 @@ export function buildGround(ctx: AlleyContext, opts: GroundOptions): BuiltPart {
 
   // Base asphalt: a small SEAMLESS tile repeated down the alley so the
   // texture never stretches. One tile covers ~TILE_WORLD metres of ground.
-  const TILE_WORLD = 4;
+  const TILE_WORLD = 2.5;
   const mainW = ALLEY.halfWidth * 2 + 0.4;
   const mainLen = ALLEY.length + 0.4;
   const tex = makeAsphaltTileTexture({ rng: ctx.rng });
+  tex.anisotropy = 16;
   tex.repeat.set(mainW / TILE_WORLD, mainLen / TILE_WORLD);
 
   const mat = makeToon({
